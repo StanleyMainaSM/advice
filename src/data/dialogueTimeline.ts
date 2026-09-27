@@ -11,13 +11,9 @@ import overShoulder from '../assets/images/over_shoulder_mentor_1790526191711.jp
 import twoShot from '../assets/images/two_shot_conversation_1790526201836.jpg';
 import mentorHands from '../assets/images/mentor_hands_desk_1790526214745.jpg';
 
-// One unique visual asset per dialogue section. All images are static and change only at section boundaries.
-const storyModules = import.meta.glob('../assets/images/story_*.svg', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
-
+// Use the original real photo assets that are already in the repository.
+// They are intentionally reused across the 36 dialogue sections so the real
+// mentor/young-man imagery is always visible instead of depending on generated SVG imports.
 export type CameraShotType =
   | 'opening'
   | 'core_rule'
@@ -71,42 +67,42 @@ export interface DialogueLine {
 }
 
 export const SHOT_IMAGES: Record<CameraShotType, string> = {
-  opening: storyModules['../assets/images/story_opening.svg'],
-  core_rule: storyModules['../assets/images/story_core_rule.svg'],
-  wealth: storyModules['../assets/images/story_wealth.svg'],
-  money_choices: storyModules['../assets/images/story_money_choices.svg'],
-  status: storyModules['../assets/images/story_status.svg'],
-  wrong: storyModules['../assets/images/story_wrong.svg'],
-  three_jobs: storyModules['../assets/images/story_three_jobs.svg'],
-  control: storyModules['../assets/images/story_control.svg'],
-  phone: storyModules['../assets/images/story_phone.svg'],
-  quiet_growth: storyModules['../assets/images/story_quiet_growth.svg'],
-  start_early: storyModules['../assets/images/story_start_early.svg'],
-  small_amount: storyModules['../assets/images/story_small_amount.svg'],
-  discipline: storyModules['../assets/images/story_discipline.svg'],
-  learn_save: storyModules['../assets/images/story_learn_save.svg'],
-  stocks: storyModules['../assets/images/story_stocks.svg'],
-  delay: storyModules['../assets/images/story_delay.svg'],
-  future: storyModules['../assets/images/story_future.svg'],
-  balance: storyModules['../assets/images/story_balance.svg'],
-  family: storyModules['../assets/images/story_family.svg'],
-  priorities: storyModules['../assets/images/story_priorities.svg'],
-  income: storyModules['../assets/images/story_income.svg'],
-  layers: storyModules['../assets/images/story_layers.svg'],
-  skills: storyModules['../assets/images/story_skills.svg'],
-  shortcuts: storyModules['../assets/images/story_shortcuts.svg'],
-  questions: storyModules['../assets/images/story_questions.svg'],
-  boring: storyModules['../assets/images/story_boring.svg'],
-  consistency: storyModules['../assets/images/story_consistency.svg'],
-  yearly: storyModules['../assets/images/story_yearly.svg'],
-  start_now: storyModules['../assets/images/story_start_now.svg'],
-  time: storyModules['../assets/images/story_time.svg'],
-  learn: storyModules['../assets/images/story_learn.svg'],
-  results: storyModules['../assets/images/story_results.svg'],
-  strength: storyModules['../assets/images/story_strength.svg'],
-  realization: storyModules['../assets/images/story_realization.svg'],
-  builder: storyModules['../assets/images/story_builder.svg'],
-  ending: storyModules['../assets/images/story_ending.svg'],
+  opening: mentorCloseup,
+  core_rule: mentorCloseup,
+  wealth: overShoulder,
+  money_choices: mentorHands,
+  status: twoShot,
+  wrong: mentorCloseup,
+  three_jobs: mentorHands,
+  control: youngManReaction,
+  phone: youngManReaction,
+  quiet_growth: mentorHands,
+  start_early: mentorCloseup,
+  small_amount: mentorHands,
+  discipline: youngManReaction,
+  learn_save: mentorHands,
+  stocks: mentorHands,
+  delay: youngManReaction,
+  future: mentorHands,
+  balance: twoShot,
+  family: twoShot,
+  priorities: twoShot,
+  income: mentorHands,
+  layers: twoShot,
+  skills: youngManReaction,
+  shortcuts: mentorCloseup,
+  questions: youngManReaction,
+  boring: mentorHands,
+  consistency: mentorCloseup,
+  yearly: mentorHands,
+  start_now: youngManReaction,
+  time: mentorCloseup,
+  learn: youngManReaction,
+  results: mentorHands,
+  strength: mentorCloseup,
+  realization: mentorCloseup,
+  builder: mentorHands,
+  ending: mentorCloseup,
 };
 
 export const TOTAL_DURATION = 210; // 3 minutes 30 seconds
