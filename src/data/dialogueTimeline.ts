@@ -11,12 +11,50 @@ import overShoulder from '../assets/images/over_shoulder_mentor_1790526191711.jp
 import twoShot from '../assets/images/two_shot_conversation_1790526201836.jpg';
 import mentorHands from '../assets/images/mentor_hands_desk_1790526214745.jpg';
 
-export type CameraShotType = 
-  | 'mentor_closeup' 
-  | 'young_man_reaction' 
-  | 'over_shoulder' 
-  | 'two_shot' 
-  | 'mentor_hands';
+// One unique visual asset per dialogue section. All images are static and change only at section boundaries.
+const storyModules = import.meta.glob('../assets/images/story_*.svg', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+export type CameraShotType =
+  | 'opening'
+  | 'core_rule'
+  | 'wealth'
+  | 'money_choices'
+  | 'status'
+  | 'wrong'
+  | 'three_jobs'
+  | 'control'
+  | 'phone'
+  | 'quiet_growth'
+  | 'start_early'
+  | 'small_amount'
+  | 'discipline'
+  | 'learn_save'
+  | 'stocks'
+  | 'delay'
+  | 'future'
+  | 'balance'
+  | 'family'
+  | 'priorities'
+  | 'income'
+  | 'layers'
+  | 'skills'
+  | 'shortcuts'
+  | 'questions'
+  | 'boring'
+  | 'consistency'
+  | 'yearly'
+  | 'start_now'
+  | 'time'
+  | 'learn'
+  | 'results'
+  | 'strength'
+  | 'realization'
+  | 'builder'
+  | 'ending';
 
 export interface DialogueLine {
   id: string;
@@ -33,11 +71,42 @@ export interface DialogueLine {
 }
 
 export const SHOT_IMAGES: Record<CameraShotType, string> = {
-  mentor_closeup: mentorCloseup,
-  young_man_reaction: youngManReaction,
-  over_shoulder: overShoulder,
-  two_shot: twoShot,
-  mentor_hands: mentorHands,
+  opening: storyModules['../assets/images/story_opening.svg'],
+  core_rule: storyModules['../assets/images/story_core_rule.svg'],
+  wealth: storyModules['../assets/images/story_wealth.svg'],
+  money_choices: storyModules['../assets/images/story_money_choices.svg'],
+  status: storyModules['../assets/images/story_status.svg'],
+  wrong: storyModules['../assets/images/story_wrong.svg'],
+  three_jobs: storyModules['../assets/images/story_three_jobs.svg'],
+  control: storyModules['../assets/images/story_control.svg'],
+  phone: storyModules['../assets/images/story_phone.svg'],
+  quiet_growth: storyModules['../assets/images/story_quiet_growth.svg'],
+  start_early: storyModules['../assets/images/story_start_early.svg'],
+  small_amount: storyModules['../assets/images/story_small_amount.svg'],
+  discipline: storyModules['../assets/images/story_discipline.svg'],
+  learn_save: storyModules['../assets/images/story_learn_save.svg'],
+  stocks: storyModules['../assets/images/story_stocks.svg'],
+  delay: storyModules['../assets/images/story_delay.svg'],
+  future: storyModules['../assets/images/story_future.svg'],
+  balance: storyModules['../assets/images/story_balance.svg'],
+  family: storyModules['../assets/images/story_family.svg'],
+  priorities: storyModules['../assets/images/story_priorities.svg'],
+  income: storyModules['../assets/images/story_income.svg'],
+  layers: storyModules['../assets/images/story_layers.svg'],
+  skills: storyModules['../assets/images/story_skills.svg'],
+  shortcuts: storyModules['../assets/images/story_shortcuts.svg'],
+  questions: storyModules['../assets/images/story_questions.svg'],
+  boring: storyModules['../assets/images/story_boring.svg'],
+  consistency: storyModules['../assets/images/story_consistency.svg'],
+  yearly: storyModules['../assets/images/story_yearly.svg'],
+  start_now: storyModules['../assets/images/story_start_now.svg'],
+  time: storyModules['../assets/images/story_time.svg'],
+  learn: storyModules['../assets/images/story_learn.svg'],
+  results: storyModules['../assets/images/story_results.svg'],
+  strength: storyModules['../assets/images/story_strength.svg'],
+  realization: storyModules['../assets/images/story_realization.svg'],
+  builder: storyModules['../assets/images/story_builder.svg'],
+  ending: storyModules['../assets/images/story_ending.svg'],
 };
 
 export const TOTAL_DURATION = 210; // 3 minutes 30 seconds
@@ -61,7 +130,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 2,
     text: 'Listen to me young man.',
     words: makeWords('Listen to me young man.', 0, 2),
-    shot: 'mentor_closeup',
+    shot: 'opening',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Opening Words',
@@ -73,7 +142,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 4.5,
     text: 'If you remember only one thing I tell you today, let it be this.',
     words: makeWords('If you remember only one thing I tell you today, let it be this.', 2, 4.5),
-    shot: 'mentor_closeup',
+    shot: 'core_rule',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Core Rule',
@@ -85,8 +154,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 7.5,
     text: 'Getting rich is not about how much money you make.',
     words: makeWords('Getting rich is not about how much money you make.', 4.5, 7.5),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'wealth',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Wealth Definition',
     lipSyncIntensity: 0.8,
@@ -97,8 +166,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 11.5,
     text: "It's about what you do with the money that comes into your hands.",
     words: makeWords("It's about what you do with the money that comes into your hands.", 7.5, 11.5),
-    shot: 'over_shoulder',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'money_choices',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Wealth Definition',
     lipSyncIntensity: 0.75,
@@ -109,7 +178,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 16.5,
     text: 'When I was your age, I thought success meant having a big salary, an expensive car, and a house people would admire.',
     words: makeWords('When I was your age, I thought success meant having a big salary, an expensive car, and a house people would admire.', 11.5, 16.5),
-    shot: 'two_shot',
+    shot: 'status',
     cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Youth Illusion',
@@ -121,8 +190,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 19,
     text: 'I was wrong.',
     words: makeWords('I was wrong.', 16.5, 19),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'wrong',
+    cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Hard Truth',
     lipSyncIntensity: 0.85,
@@ -133,7 +202,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 23,
     text: 'I eventually learned that money has only three jobs. You either spend it, save it, or make it work for you.',
     words: makeWords('I eventually learned that money has only three jobs. You either spend it, save it, or make it work for you.', 19, 23),
-    shot: 'over_shoulder',
+    shot: 'three_jobs',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: '3 Jobs of Money',
@@ -145,8 +214,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 27,
     text: 'And the people who become financially successful, learn to control all three.',
     words: makeWords('And the people who become financially successful, learn to control all three.', 23, 27),
-    shot: 'young_man_reaction',
-    cameraMotion: 'organic_sway',
+    shot: 'control',
+    cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Mastering Control',
     lipSyncIntensity: 0.0,
@@ -157,8 +226,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 32,
     text: "Don't spend your money just to look successful. A new phone can impress people for a week,",
     words: makeWords("Don't spend your money just to look successful. A new phone can impress people for a week,", 27, 32),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'phone',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'False Status',
     lipSyncIntensity: 0.85,
@@ -169,8 +238,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 37,
     text: 'a nice car can impress them for a month, but having money invested and growing quietly, that can change your entire life.',
     words: makeWords('a nice car can impress them for a month, but having money invested and growing quietly, that can change your entire life.', 32, 37),
-    shot: 'over_shoulder',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'quiet_growth',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Quiet Growth',
     lipSyncIntensity: 0.8,
@@ -181,8 +250,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 42,
     text: "Here's another secret I wish someone had told me when I was young. Don't wait until you have a lot of money before you start investing.",
     words: makeWords("Here's another secret I wish someone had told me when I was young. Don't wait until you have a lot of money before you start investing.", 37, 42),
-    shot: 'two_shot',
-    cameraMotion: 'pan_right',
+    shot: 'start_early',
+    cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Start Early',
     lipSyncIntensity: 0.75,
@@ -193,8 +262,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 46.5,
     text: 'Start learning while the amount is still small. If you cannot manage 1,000 shillings wisely,',
     words: makeWords('Start learning while the amount is still small. If you cannot manage 1,000 shillings wisely,', 42, 46.5),
-    shot: 'young_man_reaction',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'small_amount',
+    cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Small Amounts',
     lipSyncIntensity: 0.0,
@@ -205,8 +274,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 51,
     text: "having 100,000 won't magically make you disciplined.",
     words: makeWords("having 100,000 won't magically make you disciplined.", 46.5, 51),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'discipline',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Discipline',
     lipSyncIntensity: 0.85,
@@ -217,8 +286,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 57,
     text: 'Learn to save. Learn to invest. Learn how businesses make money.',
     words: makeWords('Learn to save. Learn to invest. Learn how businesses make money.', 51, 57),
-    shot: 'over_shoulder',
-    cameraMotion: 'pan_left',
+    shot: 'learn_save',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'The 5 Fundamentals',
     lipSyncIntensity: 0.8,
@@ -229,8 +298,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 63,
     text: 'Learn how stocks work. Learn how to increase your income. And most importantly, learn to delay pleasure.',
     words: makeWords('Learn how stocks work. Learn how to increase your income. And most importantly, learn to delay pleasure.', 57, 63),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'stocks',
+    cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Delay Pleasure',
     lipSyncIntensity: 0.88,
@@ -241,8 +310,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 69,
     text: "You don't need to buy everything you can afford. Sometimes the smartest financial decision is saying, 'not yet'.",
     words: makeWords("You don't need to buy everything you can afford. Sometimes the smartest financial decision is saying, 'not yet'.", 63, 69),
-    shot: 'mentor_hands',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'delay',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Not Yet',
     lipSyncIntensity: 0.5,
@@ -253,8 +322,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 75,
     text: 'Because every shilling you spend today, is a shilling that cannot work for your future.',
     words: makeWords('Because every shilling you spend today, is a shilling that cannot work for your future.', 69, 75),
-    shot: 'two_shot',
-    cameraMotion: 'pan_right',
+    shot: 'future',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Compounding',
     lipSyncIntensity: 0.75,
@@ -265,8 +334,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 80,
     text: "But remember this too. Don't become obsessed with saving so much, that you forget to live.",
     words: makeWords("But remember this too. Don't become obsessed with saving so much, that you forget to live.", 75, 80),
-    shot: 'mentor_closeup',
-    cameraMotion: 'organic_sway',
+    shot: 'balance',
+    cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Life Balance',
     lipSyncIntensity: 0.8,
@@ -277,8 +346,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 85,
     text: 'Money is a tool, not the purpose of your life. Take care of yourself. Help your family when you can.',
     words: makeWords('Money is a tool, not the purpose of your life. Take care of yourself. Help your family when you can.', 80, 85),
-    shot: 'over_shoulder',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'family',
+    cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Family & Purpose',
     lipSyncIntensity: 0.75,
@@ -289,8 +358,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 93,
     text: "Enjoy the things that genuinely matter. Just don't sacrifice your future to impress people who won't be there when the money is gone.",
     words: makeWords("Enjoy the things that genuinely matter. Just don't sacrifice your future to impress people who won't be there when the money is gone.", 85, 93),
-    shot: 'young_man_reaction',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'priorities',
+    cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'True Priorities',
     lipSyncIntensity: 0.0,
@@ -301,8 +370,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 100,
     text: 'And young man, never depend on only one source of income, if you can build another.',
     words: makeWords('And young man, never depend on only one source of income, if you can build another.', 93, 100),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'income',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Multiple Incomes',
     lipSyncIntensity: 0.85,
@@ -313,8 +382,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 109,
     text: 'Your job can pay your bills. A business can increase your income. Investments can build your wealth.',
     words: makeWords('Your job can pay your bills. A business can increase your income. Investments can build your wealth.', 100, 109),
-    shot: 'two_shot',
-    cameraMotion: 'pan_left',
+    shot: 'layers',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Income Layers',
     lipSyncIntensity: 0.8,
@@ -325,8 +394,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 116,
     text: 'Skills can give you opportunities nobody can take away.',
     words: makeWords('Skills can give you opportunities nobody can take away.', 109, 116),
-    shot: 'mentor_hands',
-    cameraMotion: 'organic_sway',
+    shot: 'skills',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Skills Capital',
     lipSyncIntensity: 0.5,
@@ -337,8 +406,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 124,
     text: 'And please, stay away from shortcuts that promise easy money.',
     words: makeWords('And please, stay away from shortcuts that promise easy money.', 116, 124),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'shortcuts',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Avoid Shortcuts',
     lipSyncIntensity: 0.85,
@@ -349,8 +418,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 131,
     text: 'If someone promises you huge returns with zero risk, stop and ask questions.',
     words: makeWords('If someone promises you huge returns with zero risk, stop and ask questions.', 124, 131),
-    shot: 'over_shoulder',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'questions',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Scam Detection',
     lipSyncIntensity: 0.8,
@@ -361,8 +430,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 138,
     text: 'Real wealth is usually boring. It grows through patience, discipline, knowledge, consistency, and time.',
     words: makeWords('Real wealth is usually boring. It grows through patience, discipline, knowledge, consistency, and time.', 131, 138),
-    shot: 'two_shot',
-    cameraMotion: 'pan_right',
+    shot: 'boring',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Boring Wealth',
     lipSyncIntensity: 0.75,
@@ -373,8 +442,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 145,
     text: "You don't need to become rich overnight. You need to become better with money every single year.",
     words: makeWords("You don't need to become rich overnight. You need to become better with money every single year.", 138, 145),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'consistency',
+    cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Yearly Growth',
     lipSyncIntensity: 0.82,
@@ -385,8 +454,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 154,
     text: 'So start where you are. With the money you have. With the knowledge you have. And with whatever opportunities are available to you.',
     words: makeWords('So start where you are. With the money you have. With the knowledge you have. And with whatever opportunities are available to you.', 145, 154),
-    shot: 'over_shoulder',
-    cameraMotion: 'organic_sway',
+    shot: 'yearly',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Start Now',
     lipSyncIntensity: 0.8,
@@ -397,8 +466,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 161,
     text: "Because the greatest financial advantage you can have when you're young, isn't a huge bank account.",
     words: makeWords("Because the greatest financial advantage you can have when you're young, isn't a huge bank account.", 154, 161),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'start_now',
+    cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Youth Advantage',
     lipSyncIntensity: 0.85,
@@ -409,8 +478,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 166,
     text: 'It is time.',
     words: makeWords('It is time.', 161, 166),
-    shot: 'young_man_reaction',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'time',
+    cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Time',
     lipSyncIntensity: 0.0,
@@ -421,8 +490,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 175,
     text: 'You have time to learn. Time to make mistakes. Time to recover. Time to invest.',
     words: makeWords('You have time to learn. Time to make mistakes. Time to recover. Time to invest.', 166, 175),
-    shot: 'two_shot',
-    cameraMotion: 'pan_left',
+    shot: 'learn',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Time To Recover',
     lipSyncIntensity: 0.75,
@@ -433,8 +502,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 182,
     text: 'And time to let small decisions become big results.',
     words: makeWords('And time to let small decisions become big results.', 175, 182),
-    shot: 'mentor_hands',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'results',
+    cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Big Results',
     lipSyncIntensity: 0.5,
@@ -445,8 +514,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 190,
     text: "So don't waste your youth trying to look rich. Use your youth to become financially strong.",
     words: makeWords("So don't waste your youth trying to look rich. Use your youth to become financially strong.", 182, 190),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'strength',
+    cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Financial Strength',
     lipSyncIntensity: 0.88,
@@ -457,8 +526,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 196,
     text: "One day, you'll look back and realize the money wasn't built in one day,",
     words: makeWords("One day, you'll look back and realize the money wasn't built in one day,", 190, 196),
-    shot: 'young_man_reaction',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'realization',
+    cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'The Realisation',
     lipSyncIntensity: 0.0,
@@ -469,8 +538,8 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 203,
     text: 'the person who knew how to build it was.',
     words: makeWords('the person who knew how to build it was.', 196, 203),
-    shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    shot: 'builder',
+    cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Final Life Wisdom',
     lipSyncIntensity: 0.9,
@@ -481,7 +550,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     end: 210,
     text: '', // Silent lingering gaze and fade to black
     words: [],
-    shot: 'mentor_closeup',
+    shot: 'ending',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Cinematic Fade Out',
