@@ -6,7 +6,7 @@
 import React, { useState, useRef } from 'react';
 import { Download, Film, CheckCircle2, AlertCircle, Camera, Loader2 } from 'lucide-react';
 import { globalAudioEngine } from '../utils/audioEngine';
-import { TOTAL_DURATION } from '../data/dialogueTimeline';
+import { TOTAL_DURATION, DIALOGUE_TIMELINE, SHOT_IMAGES } from '../data/dialogueTimeline';
 
 interface VideoExporterProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -43,6 +43,9 @@ export const VideoExporter: React.FC<VideoExporterProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    let frameInterval: number | null = null;
+    let progressInterval: number | null = null;
+
     try {
       setIsExporting(true);
       setExportProgress(0);
@@ -51,129 +54,115 @@ export const VideoExporter: React.FC<VideoExporterProps> = ({
 
       let targetDuration = TOTAL_DURATION;
       let startOffset = 0;
-      if (exportDurationMode === 'hook30') {
-        targetDuration = 30;
-      } else if (exportDurationMode === 'lesson60') {
-        startOffset = 37;
-        targetDuration = 60;
-      }
+      if (exportDurationMode === 'hook30') targetDuration = 30;
+      else if (exportDurationMode === 'lesson60') { startOffset = 37; targetDuration = 60; }
 
-      setExportStatusText(`Preparing 9:16 stream capture (${targetDuration}s)...`);
+      setExportStatusText('Preparing all storyboard images (' + targetDuration + 's)...');
 
-      // Initialize audio engine destination
+      const imageCache: Record<string, HTMLImageElement> = {};
+      const uniqueSources = Array.from(new Set(Object.values(SHOT_IMAGES)));
+      await Promise.all(uniqueSources.map((src) => new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { imageCache[src] = img; resolve(); };
+        img.onerror = () => reject(new Error('Failed to load export image: ' + src));
+        img.src = src;
+      })));
+
+      const getLineAtTime = (t: number) =>
+        DIALOGUE_TIMELINE.find(item => t >= item.start && t < item.end) || DIALOGUE_TIMELINE[DIALOGUE_TIMELINE.length - 1];
+
+      const drawExportFrame = (t: number) => {
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) return;
+        const line = getLineAtTime(t);
+        const img = imageCache[SHOT_IMAGES[line.shot]] || Object.values(imageCache)[0];
+        if (!img) return;
+        const W = canvas.width;
+        const H = canvas.height;
+        const imgAspect = img.width / img.height;
+        const canvasAspect = W / H;
+        let drawW = W;
+        let drawH = H;
+        if (imgAspect > canvasAspect) { drawH = H; drawW = H * imgAspect; }
+        else { drawW = W; drawH = W / imgAspect; }
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(img, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+      };
+
       globalAudioEngine.init();
       globalAudioEngine.seek(startOffset);
+      drawExportFrame(startOffset);
 
-      // Canvas stream
-      // Force the capture track to receive every rendered canvas frame.
-      // Some Chromium-based browsers otherwise keep only the first canvas
-      // frame in a MediaRecorder export when the canvas changes via RAF.
       const canvasStream = canvas.captureStream(30);
-      const videoTrack = canvasStream.getVideoTracks()[0];
-      const requestFrame = (videoTrack as MediaStreamTrack & { requestFrame?: () => void }).requestFrame;
-
       const audioDestination = globalAudioEngine.getAudioStreamDestination();
-
-      const combinedTracks: MediaStreamTrack[] = [
-        ...canvasStream.getVideoTracks(),
-      ];
-
-      if (audioDestination && audioDestination.stream.getAudioTracks().length > 0) {
-        combinedTracks.push(...audioDestination.stream.getAudioTracks());
-      }
-
+      const combinedTracks: MediaStreamTrack[] = [...canvasStream.getVideoTracks()];
+      if (audioDestination && audioDestination.stream.getAudioTracks().length > 0) combinedTracks.push(...audioDestination.stream.getAudioTracks());
       const combinedStream = new MediaStream(combinedTracks);
 
-      // Determine best supported mimeType
-      const mimeTypes = [
-        'video/mp4;codecs=avc1,mp4a.40.2',
-        'video/mp4',
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm',
-      ];
+      const mimeTypes = ['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
       let selectedMimeType = 'video/webm';
-      for (const mime of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mime)) {
-          selectedMimeType = mime;
-          break;
-        }
-      }
-
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType: selectedMimeType,
-        videoBitsPerSecond: 8_000_000, // 8 Mbps high-bitrate crisp video
-      });
-
+      for (const mime of mimeTypes) { if (MediaRecorder.isTypeSupported(mime)) { selectedMimeType = mime; break; } }
+      const recorder = new MediaRecorder(combinedStream, { mimeType: selectedMimeType, videoBitsPerSecond: 8_000_000 });
       recorderRef.current = recorder;
       recordedChunksRef.current = [];
 
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-        }
-      };
+      recorder.ondataavailable = (event) => { if (event.data && event.data.size > 0) recordedChunksRef.current.push(event.data); };
 
       recorder.onstop = () => {
+        if (frameInterval !== null) { clearInterval(frameInterval); frameInterval = null; }
+        if (progressInterval !== null) { clearInterval(progressInterval); progressInterval = null; }
         const isMp4 = selectedMimeType.includes('mp4');
         const ext = isMp4 ? 'mp4' : 'webm';
         const finalBlob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
         const url = URL.createObjectURL(finalBlob);
-        const filename = `The_Mentor_Financial_Advice_9x16_Reel.${ext}`;
-        
+        const filename = 'The_Mentor_Financial_Advice_9x16_Reel.' + ext;
         setDownloadUrl(url);
         setDownloadFilename(filename);
         setIsExporting(false);
         setExportProgress(100);
         setExportStatusText('Reel compiled successfully!');
         if (onExportEnd) onExportEnd();
-
-        // Auto trigger download
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.click();
       };
 
-      // Start recording & playback
       recorder.start(250);
+      const startTime = performance.now();
       globalAudioEngine.play();
 
-      const startTime = performance.now();
-
-      // Explicitly request a fresh canvas frame at the capture rate.
-      // This makes the downloaded file follow the complete storyboard,
-      // instead of allowing the recorder to retain only the opening frame.
-      const frameInterval = window.setInterval(() => {
-        if (requestFrame) {
-          requestFrame.call(videoTrack);
-        }
+      frameInterval = window.setInterval(() => {
+        const elapsed = (performance.now() - startTime) / 1000;
+        drawExportFrame(Math.min(startOffset + elapsed, startOffset + targetDuration));
       }, 1000 / 30);
 
-      const interval = window.setInterval(() => {
+      progressInterval = window.setInterval(() => {
         const elapsed = (performance.now() - startTime) / 1000;
         const progress = Math.min(100, Math.floor((elapsed / targetDuration) * 100));
         setExportProgress(progress);
-        setExportStatusText(`Encoding frames... ${Math.floor(elapsed)}s / ${targetDuration}s (${progress}%)`);
-
+        setExportStatusText('Encoding complete storyboard... ' + Math.floor(elapsed) + 's / ' + targetDuration + 's (' + progress + '%)');
         if (elapsed >= targetDuration) {
-          clearInterval(interval);
-          clearInterval(frameInterval);
+          if (frameInterval !== null) { clearInterval(frameInterval); frameInterval = null; }
+          if (progressInterval !== null) { clearInterval(progressInterval); progressInterval = null; }
+          drawExportFrame(startOffset + targetDuration - 0.01);
           globalAudioEngine.pause();
-          if (recorder.state !== 'inactive') {
-            recorder.stop();
-          }
+          if (recorder.state !== 'inactive') recorder.stop();
         }
-      }, 500);
-
+      }, 250);
     } catch (err) {
       console.error('Export error:', err);
+      if (frameInterval !== null) clearInterval(frameInterval);
+      if (progressInterval !== null) clearInterval(progressInterval);
+      globalAudioEngine.pause();
       setIsExporting(false);
-      setExportStatusText('Export failed. Please check browser permissions.');
+      setExportStatusText('Export failed. Please check that all original photos are available.');
       if (onExportEnd) onExportEnd();
     }
   };
-
   const handleCancelExport = () => {
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop();
