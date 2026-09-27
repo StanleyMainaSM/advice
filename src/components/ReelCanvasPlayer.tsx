@@ -1,0 +1,445 @@
+/**
+ * ReelCanvasPlayer: High-performance 9:16 Canvas Renderer for Instagram Reel.
+ * Renders continuous photorealistic video sequence with:
+ * - Dynamic camera movement (organic handheld drift, slow push-in, subtle breathing)
+ * - Syllable-synchronized mouth lip-movement and natural eye blinking
+ * - Professional Instagram Reel word-highlight subtitles
+ * - Cinematic color grading presets (35mm Warm, Portra 400, Film Noir, Golden Hour)
+ * - Film grain & dust motes overlay
+ */
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { 
+  DIALOGUE_TIMELINE, 
+  SHOT_IMAGES, 
+  DialogueLine, 
+  CameraShotType 
+} from '../data/dialogueTimeline';
+import { globalAudioEngine } from '../utils/audioEngine';
+
+export type ColorGradePreset = 'warm_35mm' | 'portra_400' | 'scandinavian_noir' | 'golden_hour' | 'natural_doc';
+
+export interface ReelCanvasPlayerProps {
+  currentTime: number;
+  isPlaying: boolean;
+  colorGrade: ColorGradePreset;
+  showSubtitles: boolean;
+  subtitleStyle: 'bold_yellow' | 'clean_white' | 'gold_serif';
+  showSafeZones: boolean;
+  filmGrainEnabled: boolean;
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
+}
+
+export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
+  currentTime,
+  isPlaying,
+  colorGrade,
+  showSubtitles,
+  subtitleStyle,
+  showSafeZones,
+  filmGrainEnabled,
+  onCanvasReady,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const loadedImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  // Preload all 5 cinematic images
+  useEffect(() => {
+    let loadedCount = 0;
+    const total = Object.keys(SHOT_IMAGES).length;
+    const cache: Record<string, HTMLImageElement> = {};
+
+    Object.entries(SHOT_IMAGES).forEach(([shotKey, src]) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = src;
+      img.onload = () => {
+        cache[shotKey] = img;
+        loadedCount++;
+        if (loadedCount >= total) {
+          loadedImagesRef.current = cache;
+          setImagesLoaded(true);
+        }
+      };
+      img.onerror = () => {
+        console.error('Failed to load image:', src);
+      };
+    });
+  }, []);
+
+  // Find active line and shot
+  const getCurrentDialogueLine = useCallback((t: number): { current: DialogueLine; next?: DialogueLine; progress: number } => {
+    const idx = DIALOGUE_TIMELINE.findIndex(l => t >= l.start && t < l.end);
+    if (idx === -1) {
+      const last = DIALOGUE_TIMELINE[DIALOGUE_TIMELINE.length - 1];
+      return { current: last, progress: 1.0 };
+    }
+    const current = DIALOGUE_TIMELINE[idx];
+    const next = DIALOGUE_TIMELINE[idx + 1];
+    const duration = Math.max(0.1, current.end - current.start);
+    const progress = (t - current.start) / duration;
+    return { current, next, progress };
+  }, []);
+
+  // Main Canvas Render Loop
+  useEffect(() => {
+    if (!imagesLoaded) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (onCanvasReady) {
+      onCanvasReady(canvas);
+    }
+
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return;
+
+    let animId: number;
+
+    const render = () => {
+      const t = globalAudioEngine.getCurrentTime();
+      const amplitude = globalAudioEngine.getAudioAmplitude();
+      const { current, next, progress } = getCurrentDialogueLine(t);
+
+      const W = canvas.width;  // 1080
+      const H = canvas.height; // 1920
+
+      ctx.save();
+
+      // 1. Draw base cinematic frame with dynamic camera transform
+      const activeImg = loadedImagesRef.current[current.shot];
+      if (activeImg) {
+        // Handheld camera sway
+        const swayX = Math.sin(t * 0.9) * 14 + Math.cos(t * 1.7) * 6;
+        const swayY = Math.cos(t * 0.7) * 12 + Math.sin(t * 1.4) * 5;
+        const swayRot = (Math.sin(t * 0.5) * 0.35) * (Math.PI / 180);
+
+        // Zoom based on shot progress
+        let zoom = 1.02;
+        if (current.cameraMotion === 'slow_zoom_in') {
+          zoom = 1.02 + progress * 0.08;
+        } else if (current.cameraMotion === 'slow_zoom_out') {
+          zoom = 1.10 - progress * 0.07;
+        } else if (current.cameraMotion === 'pan_right') {
+          zoom = 1.08;
+        }
+
+        ctx.translate(W / 2 + swayX, H / 2 + swayY);
+        ctx.rotate(swayRot);
+        ctx.scale(zoom, zoom);
+
+        // Calculate aspect fill for 9:16
+        const imgAspect = activeImg.width / activeImg.height;
+        const canvasAspect = W / H;
+        let drawW = W;
+        let drawH = H;
+
+        if (imgAspect > canvasAspect) {
+          drawH = H;
+          drawW = H * imgAspect;
+        } else {
+          drawW = W;
+          drawH = W / imgAspect;
+        }
+
+        let panOffsetX = 0;
+        if (current.cameraMotion === 'pan_right') {
+          panOffsetX = (progress - 0.5) * 60;
+        } else if (current.cameraMotion === 'pan_left') {
+          panOffsetX = (0.5 - progress) * 60;
+        }
+
+        ctx.drawImage(activeImg, -drawW / 2 + panOffsetX, -drawH / 2, drawW, drawH);
+
+        // 2. Micro facial life & lip-sync modulation when mentor is speaking in close-up
+        if (current.shot === 'mentor_closeup' && amplitude > 0.04) {
+          // Subtle organic lower jaw / mouth area dilation
+          // Face coordinate center approx: (0, 0.08 * H)
+          const mouthY = 0.06 * H;
+          const mouthH = 0.16 * H;
+          const mouthW = 0.34 * W;
+
+          const openFactor = Math.min(amplitude * current.lipSyncIntensity * 14, 10);
+          
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(0, mouthY, mouthW / 2, mouthH / 2, 0, 0, Math.PI * 2);
+          ctx.clip();
+          // Micro stretch
+          ctx.drawImage(
+            activeImg, 
+            -drawW / 2 + panOffsetX, 
+            -drawH / 2 + openFactor * 0.8, 
+            drawW, 
+            drawH + openFactor * 1.4
+          );
+          ctx.restore();
+        }
+
+        // 3. Subtle natural blinking simulation (every 4.5 seconds)
+        if (current.shot === 'mentor_closeup' || current.shot === 'young_man_reaction') {
+          const blinkCycle = (t + 1.2) % 4.6;
+          if (blinkCycle < 0.16) {
+            const blinkProgress = Math.sin((blinkCycle / 0.16) * Math.PI);
+            ctx.fillStyle = `rgba(32, 24, 20, ${0.45 * blinkProgress})`;
+            // Eyelid shadow region
+            const eyeY = -0.14 * H;
+            ctx.beginPath();
+            ctx.ellipse(0, eyeY, 0.28 * W, 0.04 * H * blinkProgress, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.restore();
+      }
+
+      // Cross-dissolve transition if shot is ending
+      const timeRemaining = current.end - t;
+      if (timeRemaining < 0.65 && next && loadedImagesRef.current[next.shot]) {
+        const nextImg = loadedImagesRef.current[next.shot];
+        const alpha = Math.max(0, Math.min(1, (0.65 - timeRemaining) / 0.65));
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(nextImg, 0, 0, W, H);
+        ctx.restore();
+      }
+
+      // 4. Color Grading Post-Processing
+      applyColorGrading(ctx, W, H, colorGrade);
+
+      // 5. Film grain & atmospheric dust motes
+      if (filmGrainEnabled) {
+        applyFilmGrain(ctx, W, H, t);
+      }
+
+      // 6. Subtle anamorphic lens vignette & golden afternoon light bloom
+      applyCinematicLighting(ctx, W, H, t);
+
+      // 7. Subtitles (Instagram Reel bottom third)
+      if (showSubtitles && current.text) {
+        renderSubtitles(ctx, W, H, current, t, subtitleStyle);
+      }
+
+      // 8. Instagram Reel Safe Zones Guide
+      if (showSafeZones) {
+        renderSafeZones(ctx, W, H);
+      }
+
+      // 9. Ending fade to black
+      if (t >= 204) {
+        const fadeAlpha = Math.min(1.0, (t - 204) / 5.5);
+        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    animId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [imagesLoaded, colorGrade, showSubtitles, subtitleStyle, showSafeZones, filmGrainEnabled, onCanvasReady, getCurrentDialogueLine]);
+
+  // Color grade filters
+  const applyColorGrading = (ctx: CanvasRenderingContext2D, W: number, H: number, preset: ColorGradePreset) => {
+    ctx.save();
+    if (preset === 'warm_35mm') {
+      // Warm amber highlights, rich teak shadows
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.fillStyle = 'rgba(230, 160, 80, 0.16)';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = 'rgba(255, 235, 200, 0.12)';
+      ctx.fillRect(0, 0, W, H);
+    } else if (preset === 'portra_400') {
+      // Creamy skin tones, soft pastel contrast
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = 'rgba(240, 215, 185, 0.22)';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = 'rgba(245, 240, 235, 0.08)';
+      ctx.fillRect(0, 0, W, H);
+    } else if (preset === 'scandinavian_noir') {
+      // Desaturated, deep cold contrast
+      ctx.globalCompositeOperation = 'color';
+      ctx.fillStyle = 'rgba(100, 120, 140, 0.22)';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = 'rgba(220, 225, 230, 0.15)';
+      ctx.fillRect(0, 0, W, H);
+    } else if (preset === 'golden_hour') {
+      // Dramatic sunset window warmth
+      ctx.globalCompositeOperation = 'color-burn';
+      ctx.fillStyle = 'rgba(255, 190, 90, 0.14)';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = 'rgba(255, 170, 70, 0.18)';
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+  };
+
+  // Film grain
+  const applyFilmGrain = (ctx: CanvasRenderingContext2D, W: number, H: number, t: number) => {
+    ctx.save();
+    ctx.globalAlpha = 0.045;
+    ctx.fillStyle = '#ffffff';
+
+    // Fast procedurally distributed grain speckles
+    const seed = Math.floor(t * 24);
+    for (let i = 0; i < 600; i++) {
+      const rx = ((Math.sin(i * 999 + seed) * 10000) % 1 + 1) % 1 * W;
+      const ry = ((Math.cos(i * 333 + seed) * 10000) % 1 + 1) % 1 * H;
+      const size = (i % 3 === 0) ? 2 : 1;
+      ctx.fillRect(rx, ry, size, size);
+    }
+    ctx.restore();
+  };
+
+  // Vignette & window bloom
+  const applyCinematicLighting = (ctx: CanvasRenderingContext2D, W: number, H: number, t: number) => {
+    ctx.save();
+    // Vignette
+    const gradient = ctx.createRadialGradient(W / 2, H / 2, W * 0.45, W / 2, H / 2, W * 0.85);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(1, 'rgba(10, 6, 4, 0.52)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, W, H);
+
+    // Warm sunbeam leak in top-right
+    const sunbeam = ctx.createRadialGradient(W * 0.9, H * 0.1, 20, W * 0.7, H * 0.35, W * 0.7);
+    const pulse = 0.08 + Math.sin(t * 0.5) * 0.03;
+    sunbeam.addColorStop(0, `rgba(255, 220, 160, ${pulse * 1.5})`);
+    sunbeam.addColorStop(1, 'rgba(255, 200, 130, 0)');
+    ctx.fillStyle = sunbeam;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  };
+
+  // Subtitle renderer
+  const renderSubtitles = (
+    ctx: CanvasRenderingContext2D,
+    W: number,
+    H: number,
+    line: DialogueLine,
+    t: number,
+    style: 'bold_yellow' | 'clean_white' | 'gold_serif'
+  ) => {
+    ctx.save();
+
+    const subY = H * 0.76; // Sits above Instagram Reel bottom action items
+    const words = line.words;
+    if (!words || words.length === 0) {
+      ctx.restore();
+      return;
+    }
+
+    // Measure text formatting
+    let fontFace = "'Plus Jakarta Sans', sans-serif";
+    if (style === 'gold_serif') fontFace = "'Newsreader', serif";
+
+    const fontSize = 48;
+    ctx.font = `700 ${fontSize}px ${fontFace}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Break words into chunks of ~5-7 words for mobile readability
+    const maxWordsPerLine = 6;
+    const activeWordIdx = words.findIndex(w => t >= w.start && t < w.end);
+    const chunkIdx = activeWordIdx !== -1 ? Math.floor(activeWordIdx / maxWordsPerLine) : 0;
+    const currentChunk = words.slice(chunkIdx * maxWordsPerLine, (chunkIdx + 1) * maxWordsPerLine);
+
+    // Subtle dark backdrop pill behind subtitles for 100% legibility
+    const fullText = currentChunk.map(w => w.word).join(' ');
+    const textMetrics = ctx.measureText(fullText);
+    const padX = 36;
+    const padY = 20;
+    const boxW = Math.min(W * 0.92, textMetrics.width + padX * 2);
+    const boxH = fontSize * 1.4 + padY * 2;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.roundRect((W - boxW) / 2, subY - boxH / 2, boxW, boxH, 16);
+    ctx.fill();
+
+    // Render individual words with active highlight
+    let currentX = (W - textMetrics.width) / 2;
+    currentChunk.forEach((w) => {
+      const isWordActive = t >= w.start && t < w.end;
+      const wordText = w.word + ' ';
+      const wordWidth = ctx.measureText(wordText).width;
+
+      ctx.save();
+      // Drop shadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 3;
+
+      if (isWordActive) {
+        if (style === 'bold_yellow') {
+          ctx.fillStyle = '#FFE600'; // Signature Instagram Reel viral yellow
+        } else if (style === 'gold_serif') {
+          ctx.fillStyle = '#F5D061';
+        } else {
+          ctx.fillStyle = '#60A5FA';
+        }
+        ctx.font = `800 ${fontSize + 4}px ${fontFace}`;
+      } else {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `700 ${fontSize}px ${fontFace}`;
+      }
+
+      ctx.textAlign = 'left';
+      ctx.fillText(wordText, currentX, subY);
+      ctx.restore();
+
+      currentX += wordWidth;
+    });
+
+    ctx.restore();
+  };
+
+  // Safe zones guide
+  const renderSafeZones = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 8]);
+
+    // Top safe zone (header, account info)
+    ctx.strokeRect(40, 160, W - 80, H - 420);
+
+    // Label
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+    ctx.font = '600 24px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('9:16 INSTAGRAM REEL SAFE ZONE', 50, 150);
+    ctx.fillText('AVOID BOTTOM 260px (CAPTION & AUDIO)', 50, H - 240);
+    ctx.restore();
+  };
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
+      <canvas
+        ref={canvasRef}
+        width={1080}
+        height={1920}
+        className="max-h-full aspect-[9/16] object-contain shadow-2xl rounded-sm"
+      />
+      {!imagesLoaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-950 text-stone-200">
+          <div className="w-10 h-10 border-2 border-stone-600 border-t-amber-400 rounded-full animate-spin mb-4" />
+          <p className="text-sm font-medium tracking-wide">Developing Photorealistic Reel Frame...</p>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1,0 +1,7 @@
+{
+  "name": "Cinematic 9:16 Reel Generator: The Mentor's Wealth Advice",
+  "description": "Photorealistic 9:16 Instagram Reel cinematic video generator synchronizing an elderly mentor's life and financial advice with dialogue, dynamic shots, and exportable MP4.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
