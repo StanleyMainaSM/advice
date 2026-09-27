@@ -1,7 +1,8 @@
 /**
- * Complete synchronized timeline of the uploaded mentor advice recording.
+ * Complete synchronized storyboard timeline for the mentor advice recording.
  * Duration: 210 seconds (03:30).
- * Matches the uploaded audio line-for-line and second-for-second.
+ * Every spoken section is represented and remains on screen for its full duration.
+ * The renderer uses hard cuts only; there are no animated camera movements.
  */
 
 import mentorCloseup from '../assets/images/mentor_intense_closeup_1790526165248.jpg';
@@ -24,7 +25,8 @@ export interface DialogueLine {
   text: string;
   words: { word: string; start: number; end: number }[];
   shot: CameraShotType;
-  cameraMotion: 'slow_zoom_in' | 'slow_zoom_out' | 'pan_right' | 'pan_left' | 'organic_sway' | 'fade_black';
+  // Kept for backwards compatibility with the existing inspector; the renderer ignores motion.
+  cameraMotion: 'static';
   emotion: 'grave_mentor' | 'direct_warning' | 'introspective' | 'warm_grandfather' | 'measured_conviction';
   topicTag: string;
   lipSyncIntensity: number; // 0.0 to 1.0 mouth movement amplitude
@@ -60,7 +62,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     text: 'Listen to me young man.',
     words: makeWords('Listen to me young man.', 0, 2),
     shot: 'mentor_closeup',
-    cameraMotion: 'slow_zoom_in',
+    cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Opening Words',
     lipSyncIntensity: 0.85,
@@ -72,7 +74,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     text: 'If you remember only one thing I tell you today, let it be this.',
     words: makeWords('If you remember only one thing I tell you today, let it be this.', 2, 4.5),
     shot: 'mentor_closeup',
-    cameraMotion: 'organic_sway',
+    cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Core Rule',
     lipSyncIntensity: 0.9,
@@ -108,7 +110,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     text: 'When I was your age, I thought success meant having a big salary, an expensive car, and a house people would admire.',
     words: makeWords('When I was your age, I thought success meant having a big salary, an expensive car, and a house people would admire.', 11.5, 16.5),
     shot: 'two_shot',
-    cameraMotion: 'pan_right',
+    cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Youth Illusion',
     lipSyncIntensity: 0.7,
@@ -132,7 +134,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     text: 'I eventually learned that money has only three jobs. You either spend it, save it, or make it work for you.',
     words: makeWords('I eventually learned that money has only three jobs. You either spend it, save it, or make it work for you.', 19, 23),
     shot: 'over_shoulder',
-    cameraMotion: 'pan_left',
+    cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: '3 Jobs of Money',
     lipSyncIntensity: 0.8,
@@ -480,7 +482,7 @@ export const DIALOGUE_TIMELINE: DialogueLine[] = [
     text: '', // Silent lingering gaze and fade to black
     words: [],
     shot: 'mentor_closeup',
-    cameraMotion: 'fade_black',
+    cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Cinematic Fade Out',
     lipSyncIntensity: 0.0,
