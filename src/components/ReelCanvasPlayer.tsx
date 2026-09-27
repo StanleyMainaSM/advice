@@ -3,7 +3,6 @@
  * Renders a continuous still-image storyboard with:
  * - One static picture for each dialogue section
  * - Hard cuts between pictures (no zoom, pan, sway, lip-sync, blinking, or cross-dissolve)
- * - Professional Instagram Reel word-highlight subtitles
  * - Cinematic color grading presets
  * - Fixed, non-animated film-grain / lighting overlays
  */
@@ -23,8 +22,6 @@ export interface ReelCanvasPlayerProps {
   currentTime: number;
   isPlaying: boolean;
   colorGrade: ColorGradePreset;
-  showSubtitles: boolean;
-  subtitleStyle: 'bold_yellow' | 'clean_white' | 'gold_serif';
   showSafeZones: boolean;
   filmGrainEnabled: boolean;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
@@ -34,8 +31,6 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
   currentTime,
   isPlaying,
   colorGrade,
-  showSubtitles,
-  subtitleStyle,
   showSafeZones,
   filmGrainEnabled,
   onCanvasReady,
@@ -158,10 +153,7 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
       // 6. Subtle anamorphic lens vignette & golden afternoon light bloom
       applyCinematicLighting(ctx, W, H);
 
-      // 7. Subtitles (Instagram Reel bottom third)
-      if (showSubtitles && current.text) {
-        renderSubtitles(ctx, W, H, current, t, subtitleStyle);
-      }
+      // 7. No subtitles/captions: voice + visuals only.
 
       // 8. Instagram Reel Safe Zones Guide
       if (showSafeZones) {
@@ -183,7 +175,7 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [imagesLoaded, colorGrade, showSubtitles, subtitleStyle, showSafeZones, filmGrainEnabled, onCanvasReady, getCurrentDialogueLine]);
+  }, [imagesLoaded, colorGrade, showSafeZones, filmGrainEnabled, onCanvasReady, getCurrentDialogueLine]);
 
   // Color grade filters
   const applyColorGrading = (ctx: CanvasRenderingContext2D, W: number, H: number, preset: ColorGradePreset) => {
