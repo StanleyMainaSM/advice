@@ -46,25 +46,36 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
 
   // Preload all storyboard images
   useEffect(() => {
-    let loadedCount = 0;
-    const total = Object.keys(SHOT_IMAGES).length;
+    let settledCount = 0;
+    const entries = Object.entries(SHOT_IMAGES);
+    const total = entries.length;
     const cache: Record<string, HTMLImageElement> = {};
 
-    Object.entries(SHOT_IMAGES).forEach(([shotKey, src]) => {
+    const finishLoad = () => {
+      settledCount++;
+      if (settledCount >= total) {
+        loadedImagesRef.current = cache;
+        setImagesLoaded(true);
+      }
+    };
+
+    entries.forEach(([shotKey, src]) => {
+      if (!src) {
+        console.error('Missing image source for shot:', shotKey);
+        finishLoad();
+        return;
+      }
+
       const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = src;
       img.onload = () => {
         cache[shotKey] = img;
-        loadedCount++;
-        if (loadedCount >= total) {
-          loadedImagesRef.current = cache;
-          setImagesLoaded(true);
-        }
+        finishLoad();
       };
       img.onerror = () => {
         console.error('Failed to load image:', src);
+        finishLoad();
       };
+      img.src = src;
     });
   }, []);
 
@@ -108,7 +119,11 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
 
       // 1. Draw ONE completely static picture for the active dialogue section.
       // It remains perfectly still until the next dialogue section begins.
-      const activeImg = loadedImagesRef.current[current.shot];
+      const activeImg =
+        loadedImagesRef.current[current.shot] ||
+        loadedImagesRef.current.mentorFallback ||
+        Object.values(loadedImagesRef.current)[0];
+
       if (activeImg) {
         const imgAspect = activeImg.width / activeImg.height;
         const canvasAspect = W / H;
@@ -363,7 +378,7 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
       {!imagesLoaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-950 text-stone-200">
           <div className="w-10 h-10 border-2 border-stone-600 border-t-amber-400 rounded-full animate-spin mb-4" />
-          <p className="text-sm font-medium tracking-wide">Developing Photorealistic Reel Frame...</p>
+          <p className="text-sm font-medium tracking-wide">Loading your original photos...</p>
         </div>
       )}
     </div>
