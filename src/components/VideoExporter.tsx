@@ -65,7 +65,13 @@ export const VideoExporter: React.FC<VideoExporterProps> = ({
       globalAudioEngine.seek(startOffset);
 
       // Canvas stream
-      const canvasStream = canvas.captureStream(30); // 30fps smooth Instagram Reel
+      // Force the capture track to receive every rendered canvas frame.
+      // Some Chromium-based browsers otherwise keep only the first canvas
+      // frame in a MediaRecorder export when the canvas changes via RAF.
+      const canvasStream = canvas.captureStream(30);
+      const videoTrack = canvasStream.getVideoTracks()[0];
+      const requestFrame = (videoTrack as MediaStreamTrack & { requestFrame?: () => void }).requestFrame;
+
       const audioDestination = globalAudioEngine.getAudioStreamDestination();
 
       const combinedTracks: MediaStreamTrack[] = [
@@ -130,10 +136,20 @@ export const VideoExporter: React.FC<VideoExporterProps> = ({
       };
 
       // Start recording & playback
-      recorder.start(1000);
+      recorder.start(250);
       globalAudioEngine.play();
 
       const startTime = performance.now();
+
+      // Explicitly request a fresh canvas frame at the capture rate.
+      // This makes the downloaded file follow the complete storyboard,
+      // instead of allowing the recorder to retain only the opening frame.
+      const frameInterval = window.setInterval(() => {
+        if (requestFrame) {
+          requestFrame.call(videoTrack);
+        }
+      }, 1000 / 30);
+
       const interval = window.setInterval(() => {
         const elapsed = (performance.now() - startTime) / 1000;
         const progress = Math.min(100, Math.floor((elapsed / targetDuration) * 100));
@@ -142,6 +158,7 @@ export const VideoExporter: React.FC<VideoExporterProps> = ({
 
         if (elapsed >= targetDuration) {
           clearInterval(interval);
+          clearInterval(frameInterval);
           globalAudioEngine.pause();
           if (recorder.state !== 'inactive') {
             recorder.stop();
@@ -298,7 +315,7 @@ export const VideoExporter: React.FC<VideoExporterProps> = ({
       </button>
 
       <p className="mt-3 text-[11px] text-stone-400 leading-relaxed text-center">
-        Records the 1080×1920 canvas sequence, camera movement, audio track, and synchronized subtitles ready for Instagram Reel, YouTube Shorts, or TikTok.
+        Records the complete 1080×1920 canvas storyboard and audio track for Instagram Reels, YouTube Shorts, or TikTok.
       </p>
     </div>
   );
