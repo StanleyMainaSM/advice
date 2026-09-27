@@ -1,11 +1,11 @@
 /**
  * ReelCanvasPlayer: High-performance 9:16 Canvas Renderer for Instagram Reel.
- * Renders continuous photorealistic video sequence with:
- * - Dynamic camera movement (organic handheld drift, slow push-in, subtle breathing)
- * - Syllable-synchronized mouth lip-movement and natural eye blinking
+ * Renders a continuous still-image storyboard with:
+ * - One static picture for each dialogue section
+ * - Hard cuts between pictures (no zoom, pan, sway, lip-sync, blinking, or cross-dissolve)
  * - Professional Instagram Reel word-highlight subtitles
- * - Cinematic color grading presets (35mm Warm, Portra 400, Film Noir, Golden Hour)
- * - Film grain & dust motes overlay
+ * - Cinematic color grading presets
+ * - Fixed, non-animated film-grain / lighting overlays
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -44,7 +44,7 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
   const loadedImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const [imagesLoaded, setImagesLoaded] = useState(false);
 
-  // Preload all 5 cinematic images
+  // Preload all storyboard images
   useEffect(() => {
     let loadedCount = 0;
     const total = Object.keys(SHOT_IMAGES).length;
@@ -99,37 +99,17 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
 
     const render = () => {
       const t = globalAudioEngine.getCurrentTime();
-      const amplitude = globalAudioEngine.getAudioAmplitude();
-      const { current, next, progress } = getCurrentDialogueLine(t);
+      const { current } = getCurrentDialogueLine(t);
 
       const W = canvas.width;  // 1080
       const H = canvas.height; // 1920
 
       ctx.save();
 
-      // 1. Draw base cinematic frame with dynamic camera transform
+      // 1. Draw ONE completely static picture for the active dialogue section.
+      // It remains perfectly still until the next dialogue section begins.
       const activeImg = loadedImagesRef.current[current.shot];
       if (activeImg) {
-        // Handheld camera sway
-        const swayX = Math.sin(t * 0.9) * 14 + Math.cos(t * 1.7) * 6;
-        const swayY = Math.cos(t * 0.7) * 12 + Math.sin(t * 1.4) * 5;
-        const swayRot = (Math.sin(t * 0.5) * 0.35) * (Math.PI / 180);
-
-        // Zoom based on shot progress
-        let zoom = 1.02;
-        if (current.cameraMotion === 'slow_zoom_in') {
-          zoom = 1.02 + progress * 0.08;
-        } else if (current.cameraMotion === 'slow_zoom_out') {
-          zoom = 1.10 - progress * 0.07;
-        } else if (current.cameraMotion === 'pan_right') {
-          zoom = 1.08;
-        }
-
-        ctx.translate(W / 2 + swayX, H / 2 + swayY);
-        ctx.rotate(swayRot);
-        ctx.scale(zoom, zoom);
-
-        // Calculate aspect fill for 9:16
         const imgAspect = activeImg.width / activeImg.height;
         const canvasAspect = W / H;
         let drawW = W;
@@ -143,78 +123,25 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
           drawH = W / imgAspect;
         }
 
-        let panOffsetX = 0;
-        if (current.cameraMotion === 'pan_right') {
-          panOffsetX = (progress - 0.5) * 60;
-        } else if (current.cameraMotion === 'pan_left') {
-          panOffsetX = (0.5 - progress) * 60;
-        }
-
-        ctx.drawImage(activeImg, -drawW / 2 + panOffsetX, -drawH / 2, drawW, drawH);
-
-        // 2. Micro facial life & lip-sync modulation when mentor is speaking in close-up
-        if (current.shot === 'mentor_closeup' && amplitude > 0.04) {
-          // Subtle organic lower jaw / mouth area dilation
-          // Face coordinate center approx: (0, 0.08 * H)
-          const mouthY = 0.06 * H;
-          const mouthH = 0.16 * H;
-          const mouthW = 0.34 * W;
-
-          const openFactor = Math.min(amplitude * current.lipSyncIntensity * 14, 10);
-          
-          ctx.save();
-          ctx.beginPath();
-          ctx.ellipse(0, mouthY, mouthW / 2, mouthH / 2, 0, 0, Math.PI * 2);
-          ctx.clip();
-          // Micro stretch
-          ctx.drawImage(
-            activeImg, 
-            -drawW / 2 + panOffsetX, 
-            -drawH / 2 + openFactor * 0.8, 
-            drawW, 
-            drawH + openFactor * 1.4
-          );
-          ctx.restore();
-        }
-
-        // 3. Subtle natural blinking simulation (every 4.5 seconds)
-        if (current.shot === 'mentor_closeup' || current.shot === 'young_man_reaction') {
-          const blinkCycle = (t + 1.2) % 4.6;
-          if (blinkCycle < 0.16) {
-            const blinkProgress = Math.sin((blinkCycle / 0.16) * Math.PI);
-            ctx.fillStyle = `rgba(32, 24, 20, ${0.45 * blinkProgress})`;
-            // Eyelid shadow region
-            const eyeY = -0.14 * H;
-            ctx.beginPath();
-            ctx.ellipse(0, eyeY, 0.28 * W, 0.04 * H * blinkProgress, 0, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-
-        ctx.restore();
-      }
-
-      // Cross-dissolve transition if shot is ending
-      const timeRemaining = current.end - t;
-      if (timeRemaining < 0.65 && next && loadedImagesRef.current[next.shot]) {
-        const nextImg = loadedImagesRef.current[next.shot];
-        const alpha = Math.max(0, Math.min(1, (0.65 - timeRemaining) / 0.65));
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(nextImg, 0, 0, W, H);
-        ctx.restore();
+        ctx.drawImage(
+          activeImg,
+          (W - drawW) / 2,
+          (H - drawH) / 2,
+          drawW,
+          drawH
+        );
       }
 
       // 4. Color Grading Post-Processing
       applyColorGrading(ctx, W, H, colorGrade);
 
-      // 5. Film grain & atmospheric dust motes
+      // 5. Fixed film grain overlay
       if (filmGrainEnabled) {
-        applyFilmGrain(ctx, W, H, t);
+        applyFilmGrain(ctx, W, H);
       }
 
       // 6. Subtle anamorphic lens vignette & golden afternoon light bloom
-      applyCinematicLighting(ctx, W, H, t);
+      applyCinematicLighting(ctx, W, H);
 
       // 7. Subtitles (Instagram Reel bottom third)
       if (showSubtitles && current.text) {
@@ -287,16 +214,15 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
   };
 
   // Film grain
-  const applyFilmGrain = (ctx: CanvasRenderingContext2D, W: number, H: number, t: number) => {
+  const applyFilmGrain = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
     ctx.save();
     ctx.globalAlpha = 0.045;
     ctx.fillStyle = '#ffffff';
 
-    // Fast procedurally distributed grain speckles
-    const seed = Math.floor(t * 24);
+    // Fixed grain pattern so the image itself never appears to move.
     for (let i = 0; i < 600; i++) {
-      const rx = ((Math.sin(i * 999 + seed) * 10000) % 1 + 1) % 1 * W;
-      const ry = ((Math.cos(i * 333 + seed) * 10000) % 1 + 1) % 1 * H;
+      const rx = ((Math.sin(i * 999) * 10000) % 1 + 1) % 1 * W;
+      const ry = ((Math.cos(i * 333) * 10000) % 1 + 1) % 1 * H;
       const size = (i % 3 === 0) ? 2 : 1;
       ctx.fillRect(rx, ry, size, size);
     }
@@ -304,7 +230,7 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
   };
 
   // Vignette & window bloom
-  const applyCinematicLighting = (ctx: CanvasRenderingContext2D, W: number, H: number, t: number) => {
+  const applyCinematicLighting = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
     ctx.save();
     // Vignette
     const gradient = ctx.createRadialGradient(W / 2, H / 2, W * 0.45, W / 2, H / 2, W * 0.85);
@@ -315,7 +241,7 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
 
     // Warm sunbeam leak in top-right
     const sunbeam = ctx.createRadialGradient(W * 0.9, H * 0.1, 20, W * 0.7, H * 0.35, W * 0.7);
-    const pulse = 0.08 + Math.sin(t * 0.5) * 0.03;
+    const pulse = 0.08;
     sunbeam.addColorStop(0, `rgba(255, 220, 160, ${pulse * 1.5})`);
     sunbeam.addColorStop(1, 'rgba(255, 200, 130, 0)');
     ctx.fillStyle = sunbeam;
