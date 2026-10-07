@@ -1,555 +1,582 @@
 /**
  * Complete synchronized storyboard timeline for the mentor advice recording.
  * Duration: 210 seconds (03:30).
- * Every spoken section is represented and remains on screen for its full duration.
- * The renderer uses hard cuts only; there are no animated camera movements.
+ * 46 distinct visual sections matching dialogue line-for-line and phrase-for-phrase.
+ * Pure static photorealistic imagery with clean hard cuts on dialogue boundaries.
+ * 
+ * Supports both:
+ * - 9:16 Vertical compositions (Instagram Reels / TikTok / YouTube Shorts)
+ * - 16:9 Horizontal compositions (Normal YouTube Videos)
  */
 
+// 15 Photorealistic 9:16 Vertical Assets
 import mentorCloseup from '../assets/images/mentor_intense_closeup_1790526165248.jpg';
 import youngManReaction from '../assets/images/young_man_reaction_1790526175969.jpg';
 import overShoulder from '../assets/images/over_shoulder_mentor_1790526191711.jpg';
 import twoShot from '../assets/images/two_shot_conversation_1790526201836.jpg';
 import mentorHands from '../assets/images/mentor_hands_desk_1790526214745.jpg';
+import stocksChart from '../assets/images/stocks_chart_desk_1790602267594.jpg';
+import coinsSavings from '../assets/images/coins_savings_shillings_1790602280850.jpg';
+import businessPlans from '../assets/images/business_workshop_plans_1790602332334.jpg';
+import patiencePlant from '../assets/images/patience_growing_plant_1790602344783.jpg';
+import avoidScams from '../assets/images/avoid_scams_caution_1790602358525.jpg';
+import hourglassTime from '../assets/images/antique_hourglass_time_1790602370355.jpg';
+import youngManNotes from '../assets/images/young_man_notes_1790602385484.jpg';
+import mentorSmile from '../assets/images/mentor_warm_smile_1790602395743.jpg';
+import familyBookshelf from '../assets/images/family_bookshelf_warmth_1790602408151.jpg';
+import multipleIncome from '../assets/images/multiple_income_streams_1790602420879.jpg';
 
-// Use the original real photo assets that are already in the repository.
-// They are intentionally reused across the 36 dialogue sections so the real
-// mentor/young-man imagery is always visible instead of depending on generated SVG imports.
-export type CameraShotType =
-  | 'opening'
-  | 'core_rule'
-  | 'wealth'
-  | 'money_choices'
-  | 'status'
-  | 'wrong'
-  | 'three_jobs'
-  | 'control'
-  | 'phone'
-  | 'quiet_growth'
-  | 'start_early'
-  | 'small_amount'
-  | 'discipline'
-  | 'learn_save'
-  | 'stocks'
-  | 'delay'
-  | 'future'
-  | 'balance'
-  | 'family'
-  | 'priorities'
-  | 'income'
-  | 'layers'
-  | 'skills'
-  | 'shortcuts'
-  | 'questions'
-  | 'boring'
-  | 'consistency'
-  | 'yearly'
-  | 'start_now'
-  | 'time'
-  | 'learn'
-  | 'results'
-  | 'strength'
-  | 'realization'
-  | 'builder'
-  | 'ending';
+// Dedicated Native 16:9 Landscape Assets (Widescreen cinematic compositions)
+import mentorTwoShot16x9 from '../assets/images/mentor_two_shot_16x9_1790606251443.jpg';
+import mentorClose16x9 from '../assets/images/mentor_close_16x9_1790606275011.jpg';
+import youngMan16x9 from '../assets/images/young_man_16x9_1790606288164.jpg';
+import financeDesk16x9 from '../assets/images/finance_desk_16x9_1790606303618.jpg';
+import mentorSmile16x9 from '../assets/images/mentor_smile_16x9_1790606317928.jpg';
+
+export type StoryboardImageKey =
+  | 'mentor_closeup'
+  | 'young_man_reaction'
+  | 'over_shoulder'
+  | 'two_shot'
+  | 'mentor_hands'
+  | 'stocks_chart'
+  | 'coins_savings'
+  | 'business_plans'
+  | 'patience_plant'
+  | 'avoid_scams'
+  | 'hourglass_time'
+  | 'young_man_notes'
+  | 'mentor_smile'
+  | 'family_bookshelf'
+  | 'multiple_income';
+
+// 9:16 Vertical image assets map
+export const SHOT_IMAGES_9_16: Record<StoryboardImageKey, string> = {
+  mentor_closeup: mentorCloseup,
+  young_man_reaction: youngManReaction,
+  over_shoulder: overShoulder,
+  two_shot: twoShot,
+  mentor_hands: mentorHands,
+  stocks_chart: stocksChart,
+  coins_savings: coinsSavings,
+  business_plans: businessPlans,
+  patience_plant: patiencePlant,
+  avoid_scams: avoidScams,
+  hourglass_time: hourglassTime,
+  young_man_notes: youngManNotes,
+  mentor_smile: mentorSmile,
+  family_bookshelf: familyBookshelf,
+  multiple_income: multipleIncome,
+};
+
+// 16:9 Horizontal landscape image assets map
+// Uses native widescreen compositions for character scenes, ensuring natural 16:9 framing without distortion
+export const SHOT_IMAGES_16_9: Record<StoryboardImageKey, string> = {
+  mentor_closeup: mentorClose16x9,
+  young_man_reaction: youngMan16x9,
+  over_shoulder: mentorTwoShot16x9,
+  two_shot: mentorTwoShot16x9,
+  mentor_hands: financeDesk16x9,
+  stocks_chart: financeDesk16x9,
+  coins_savings: financeDesk16x9,
+  business_plans: businessPlans,
+  patience_plant: patiencePlant,
+  avoid_scams: avoidScams,
+  hourglass_time: financeDesk16x9,
+  young_man_notes: youngMan16x9,
+  mentor_smile: mentorSmile16x9,
+  family_bookshelf: familyBookshelf,
+  multiple_income: multipleIncome,
+};
+
+// Backward-compatible default export
+export const SHOT_IMAGES = SHOT_IMAGES_9_16;
+
+export type CameraShotType = StoryboardImageKey;
 
 export interface DialogueLine {
   id: string;
   start: number; // seconds
   end: number;   // seconds
   text: string;
-  words: { word: string; start: number; end: number }[];
-  shot: CameraShotType;
-  // Kept for backwards compatibility with the existing inspector; the renderer ignores motion.
+  shot: StoryboardImageKey;
   cameraMotion: 'static';
   emotion: 'grave_mentor' | 'direct_warning' | 'introspective' | 'warm_grandfather' | 'measured_conviction';
   topicTag: string;
-  lipSyncIntensity: number; // 0.0 to 1.0 mouth movement amplitude
 }
-
-export const SHOT_IMAGES: Record<CameraShotType, string> = {
-  opening: mentorCloseup,
-  core_rule: mentorCloseup,
-  wealth: overShoulder,
-  money_choices: mentorHands,
-  status: twoShot,
-  wrong: mentorCloseup,
-  three_jobs: mentorHands,
-  control: youngManReaction,
-  phone: youngManReaction,
-  quiet_growth: mentorHands,
-  start_early: mentorCloseup,
-  small_amount: mentorHands,
-  discipline: youngManReaction,
-  learn_save: mentorHands,
-  stocks: mentorHands,
-  delay: youngManReaction,
-  future: mentorHands,
-  balance: twoShot,
-  family: twoShot,
-  priorities: twoShot,
-  income: mentorHands,
-  layers: twoShot,
-  skills: youngManReaction,
-  shortcuts: mentorCloseup,
-  questions: youngManReaction,
-  boring: mentorHands,
-  consistency: mentorCloseup,
-  yearly: mentorHands,
-  start_now: youngManReaction,
-  time: mentorCloseup,
-  learn: youngManReaction,
-  results: mentorHands,
-  strength: mentorCloseup,
-  realization: mentorCloseup,
-  builder: mentorHands,
-  ending: mentorCloseup,
-};
 
 export const TOTAL_DURATION = 210; // 3 minutes 30 seconds
+export const SHORT_DURATION = 40;  // 40 seconds YouTube Short
 
-// Helper to interpolate word timestamps evenly across line duration
-function makeWords(text: string, start: number, end: number) {
-  const parts = text.split(/\s+/).filter(Boolean);
-  const duration = end - start;
-  const wordDuration = duration / Math.max(1, parts.length);
-  return parts.map((w, i) => ({
-    word: w,
-    start: start + i * wordDuration,
-    end: start + (i + 1) * wordDuration,
-  }));
-}
-
+// The full 46-section storyboard (3m 30s)
 export const DIALOGUE_TIMELINE: DialogueLine[] = [
   {
-    id: 'line_1',
-    start: 0,
-    end: 2,
+    id: 'shot_1',
+    start: 0.0,
+    end: 2.0,
     text: 'Listen to me young man.',
-    words: makeWords('Listen to me young man.', 0, 2),
-    shot: 'opening',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Opening Words',
-    lipSyncIntensity: 0.85,
   },
   {
-    id: 'line_2',
-    start: 2,
+    id: 'shot_2',
+    start: 2.0,
     end: 4.5,
-    text: 'If you remember only one thing I tell you today, let it be this.',
-    words: makeWords('If you remember only one thing I tell you today, let it be this.', 2, 4.5),
-    shot: 'core_rule',
+    text: 'If you remember only one thing I tell you today,',
+    shot: 'over_shoulder',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Core Rule',
-    lipSyncIntensity: 0.9,
   },
   {
-    id: 'line_3',
+    id: 'shot_3',
     start: 4.5,
     end: 7.5,
-    text: 'Getting rich is not about how much money you make.',
-    words: makeWords('Getting rich is not about how much money you make.', 4.5, 7.5),
-    shot: 'wealth',
+    text: 'let it be this: Getting rich is not about how much money you make.',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Wealth Definition',
-    lipSyncIntensity: 0.8,
   },
   {
-    id: 'line_4',
+    id: 'shot_4',
     start: 7.5,
     end: 11.5,
     text: "It's about what you do with the money that comes into your hands.",
-    words: makeWords("It's about what you do with the money that comes into your hands.", 7.5, 11.5),
-    shot: 'money_choices',
+    shot: 'mentor_hands',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Wealth Definition',
-    lipSyncIntensity: 0.75,
   },
   {
-    id: 'line_5',
+    id: 'shot_5',
     start: 11.5,
     end: 16.5,
     text: 'When I was your age, I thought success meant having a big salary, an expensive car, and a house people would admire.',
-    words: makeWords('When I was your age, I thought success meant having a big salary, an expensive car, and a house people would admire.', 11.5, 16.5),
-    shot: 'status',
+    shot: 'two_shot',
     cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Youth Illusion',
-    lipSyncIntensity: 0.7,
   },
   {
-    id: 'line_6',
+    id: 'shot_6',
     start: 16.5,
-    end: 19,
+    end: 19.0,
     text: 'I was wrong.',
-    words: makeWords('I was wrong.', 16.5, 19),
-    shot: 'wrong',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Hard Truth',
-    lipSyncIntensity: 0.85,
   },
   {
-    id: 'line_7',
-    start: 19,
-    end: 23,
+    id: 'shot_7',
+    start: 19.0,
+    end: 23.0,
     text: 'I eventually learned that money has only three jobs. You either spend it, save it, or make it work for you.',
-    words: makeWords('I eventually learned that money has only three jobs. You either spend it, save it, or make it work for you.', 19, 23),
-    shot: 'three_jobs',
+    shot: 'coins_savings',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: '3 Jobs of Money',
-    lipSyncIntensity: 0.8,
   },
   {
-    id: 'line_8',
-    start: 23,
-    end: 27,
+    id: 'shot_8',
+    start: 23.0,
+    end: 27.0,
     text: 'And the people who become financially successful, learn to control all three.',
-    words: makeWords('And the people who become financially successful, learn to control all three.', 23, 27),
-    shot: 'control',
+    shot: 'young_man_notes',
     cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Mastering Control',
-    lipSyncIntensity: 0.0,
   },
   {
-    id: 'line_9',
-    start: 27,
-    end: 32,
+    id: 'shot_9',
+    start: 27.0,
+    end: 32.0,
     text: "Don't spend your money just to look successful. A new phone can impress people for a week,",
-    words: makeWords("Don't spend your money just to look successful. A new phone can impress people for a week,", 27, 32),
-    shot: 'phone',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'False Status',
-    lipSyncIntensity: 0.85,
   },
   {
-    id: 'line_10',
-    start: 32,
-    end: 37,
+    id: 'shot_10',
+    start: 32.0,
+    end: 37.0,
     text: 'a nice car can impress them for a month, but having money invested and growing quietly, that can change your entire life.',
-    words: makeWords('a nice car can impress them for a month, but having money invested and growing quietly, that can change your entire life.', 32, 37),
-    shot: 'quiet_growth',
+    shot: 'patience_plant',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Quiet Growth',
-    lipSyncIntensity: 0.8,
   },
   {
-    id: 'line_11',
-    start: 37,
-    end: 42,
+    id: 'shot_11',
+    start: 37.0,
+    end: 42.0,
     text: "Here's another secret I wish someone had told me when I was young. Don't wait until you have a lot of money before you start investing.",
-    words: makeWords("Here's another secret I wish someone had told me when I was young. Don't wait until you have a lot of money before you start investing.", 37, 42),
-    shot: 'start_early',
+    shot: 'two_shot',
     cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Start Early',
-    lipSyncIntensity: 0.75,
   },
   {
-    id: 'line_12',
-    start: 42,
+    id: 'shot_12',
+    start: 42.0,
     end: 46.5,
     text: 'Start learning while the amount is still small. If you cannot manage 1,000 shillings wisely,',
-    words: makeWords('Start learning while the amount is still small. If you cannot manage 1,000 shillings wisely,', 42, 46.5),
-    shot: 'small_amount',
+    shot: 'young_man_reaction',
     cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'Small Amounts',
-    lipSyncIntensity: 0.0,
   },
   {
-    id: 'line_13',
+    id: 'shot_13',
     start: 46.5,
-    end: 51,
+    end: 51.0,
     text: "having 100,000 won't magically make you disciplined.",
-    words: makeWords("having 100,000 won't magically make you disciplined.", 46.5, 51),
-    shot: 'discipline',
+    shot: 'coins_savings',
     cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Discipline',
-    lipSyncIntensity: 0.85,
   },
   {
-    id: 'line_14',
-    start: 51,
-    end: 57,
-    text: 'Learn to save. Learn to invest. Learn how businesses make money.',
-    words: makeWords('Learn to save. Learn to invest. Learn how businesses make money.', 51, 57),
-    shot: 'learn_save',
+    id: 'shot_14',
+    start: 51.0,
+    end: 53.5,
+    text: 'Learn to save.',
+    shot: 'coins_savings',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
-    topicTag: 'The 5 Fundamentals',
-    lipSyncIntensity: 0.8,
+    topicTag: 'Saving Habit',
   },
   {
-    id: 'line_15',
-    start: 57,
-    end: 63,
-    text: 'Learn how stocks work. Learn how to increase your income. And most importantly, learn to delay pleasure.',
-    words: makeWords('Learn how stocks work. Learn how to increase your income. And most importantly, learn to delay pleasure.', 57, 63),
-    shot: 'stocks',
+    id: 'shot_15',
+    start: 53.5,
+    end: 55.5,
+    text: 'Learn to invest.',
+    shot: 'stocks_chart',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Investing',
+  },
+  {
+    id: 'shot_16',
+    start: 55.5,
+    end: 57.5,
+    text: 'Learn how businesses make money.',
+    shot: 'business_plans',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Business Logic',
+  },
+  {
+    id: 'shot_17',
+    start: 57.5,
+    end: 60.0,
+    text: 'Learn how stocks work.',
+    shot: 'stocks_chart',
+    cameraMotion: 'static',
+    emotion: 'grave_mentor',
+    topicTag: 'Stocks Understanding',
+  },
+  {
+    id: 'shot_18',
+    start: 60.0,
+    end: 63.0,
+    text: 'Learn how to increase your income. And most importantly, learn to delay pleasure.',
+    shot: 'multiple_income',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Delay Pleasure',
-    lipSyncIntensity: 0.88,
   },
   {
-    id: 'line_16',
-    start: 63,
-    end: 69,
-    text: "You don't need to buy everything you can afford. Sometimes the smartest financial decision is saying, 'not yet'.",
-    words: makeWords("You don't need to buy everything you can afford. Sometimes the smartest financial decision is saying, 'not yet'.", 63, 69),
-    shot: 'delay',
+    id: 'shot_19',
+    start: 63.0,
+    end: 66.5,
+    text: "You don't need to buy everything you can afford.",
+    shot: 'young_man_notes',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Affordability vs Discipline',
+  },
+  {
+    id: 'shot_20',
+    start: 66.5,
+    end: 69.0,
+    text: "Sometimes the smartest financial decision is saying, 'not yet'.",
+    shot: 'mentor_hands',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Not Yet',
-    lipSyncIntensity: 0.5,
   },
   {
-    id: 'line_17',
-    start: 69,
-    end: 75,
+    id: 'shot_21',
+    start: 69.0,
+    end: 75.0,
     text: 'Because every shilling you spend today, is a shilling that cannot work for your future.',
-    words: makeWords('Because every shilling you spend today, is a shilling that cannot work for your future.', 69, 75),
-    shot: 'future',
+    shot: 'coins_savings',
     cameraMotion: 'static',
     emotion: 'direct_warning',
-    topicTag: 'Compounding',
-    lipSyncIntensity: 0.75,
+    topicTag: 'Compounding Shilling',
   },
   {
-    id: 'line_18',
-    start: 75,
-    end: 80,
+    id: 'shot_22',
+    start: 75.0,
+    end: 80.0,
     text: "But remember this too. Don't become obsessed with saving so much, that you forget to live.",
-    words: makeWords("But remember this too. Don't become obsessed with saving so much, that you forget to live.", 75, 80),
-    shot: 'balance',
+    shot: 'mentor_smile',
     cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Life Balance',
-    lipSyncIntensity: 0.8,
   },
   {
-    id: 'line_19',
-    start: 80,
-    end: 85,
-    text: 'Money is a tool, not the purpose of your life. Take care of yourself. Help your family when you can.',
-    words: makeWords('Money is a tool, not the purpose of your life. Take care of yourself. Help your family when you can.', 80, 85),
-    shot: 'family',
+    id: 'shot_23',
+    start: 80.0,
+    end: 85.0,
+    text: 'Money is a tool, not the purpose of your life. Take care of yourself.',
+    shot: 'two_shot',
     cameraMotion: 'static',
     emotion: 'warm_grandfather',
-    topicTag: 'Family & Purpose',
-    lipSyncIntensity: 0.75,
+    topicTag: 'Money As A Tool',
   },
   {
-    id: 'line_20',
-    start: 85,
-    end: 93,
-    text: "Enjoy the things that genuinely matter. Just don't sacrifice your future to impress people who won't be there when the money is gone.",
-    words: makeWords("Enjoy the things that genuinely matter. Just don't sacrifice your future to impress people who won't be there when the money is gone.", 85, 93),
-    shot: 'priorities',
+    id: 'shot_24',
+    start: 85.0,
+    end: 89.0,
+    text: 'Help your family when you can. Enjoy the things that genuinely matter.',
+    shot: 'family_bookshelf',
+    cameraMotion: 'static',
+    emotion: 'warm_grandfather',
+    topicTag: 'Family & Living',
+  },
+  {
+    id: 'shot_25',
+    start: 89.0,
+    end: 93.0,
+    text: "Just don't sacrifice your future to impress people who won't be there when the money is gone.",
+    shot: 'young_man_reaction',
     cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'True Priorities',
-    lipSyncIntensity: 0.0,
   },
   {
-    id: 'line_21',
-    start: 93,
-    end: 100,
+    id: 'shot_26',
+    start: 93.0,
+    end: 100.0,
     text: 'And young man, never depend on only one source of income, if you can build another.',
-    words: makeWords('And young man, never depend on only one source of income, if you can build another.', 93, 100),
-    shot: 'income',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'direct_warning',
-    topicTag: 'Multiple Incomes',
-    lipSyncIntensity: 0.85,
+    topicTag: 'Multiple Incomes Rule',
   },
   {
-    id: 'line_22',
-    start: 100,
-    end: 109,
-    text: 'Your job can pay your bills. A business can increase your income. Investments can build your wealth.',
-    words: makeWords('Your job can pay your bills. A business can increase your income. Investments can build your wealth.', 100, 109),
-    shot: 'layers',
+    id: 'shot_27',
+    start: 100.0,
+    end: 104.0,
+    text: 'Your job can pay your bills.',
+    shot: 'over_shoulder',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
-    topicTag: 'Income Layers',
-    lipSyncIntensity: 0.8,
+    topicTag: 'Job Income',
   },
   {
-    id: 'line_23',
-    start: 109,
-    end: 116,
+    id: 'shot_28',
+    start: 104.0,
+    end: 109.0,
+    text: 'A business can increase your income. Investments can build your wealth.',
+    shot: 'business_plans',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Business & Investments',
+  },
+  {
+    id: 'shot_29',
+    start: 109.0,
+    end: 116.0,
     text: 'Skills can give you opportunities nobody can take away.',
-    words: makeWords('Skills can give you opportunities nobody can take away.', 109, 116),
-    shot: 'skills',
+    shot: 'young_man_notes',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Skills Capital',
-    lipSyncIntensity: 0.5,
   },
   {
-    id: 'line_24',
-    start: 116,
-    end: 124,
+    id: 'shot_30',
+    start: 116.0,
+    end: 124.0,
     text: 'And please, stay away from shortcuts that promise easy money.',
-    words: makeWords('And please, stay away from shortcuts that promise easy money.', 116, 124),
-    shot: 'shortcuts',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'direct_warning',
-    topicTag: 'Avoid Shortcuts',
-    lipSyncIntensity: 0.85,
+    topicTag: 'Avoid Easy Money',
   },
   {
-    id: 'line_25',
-    start: 124,
-    end: 131,
+    id: 'shot_31',
+    start: 124.0,
+    end: 131.0,
     text: 'If someone promises you huge returns with zero risk, stop and ask questions.',
-    words: makeWords('If someone promises you huge returns with zero risk, stop and ask questions.', 124, 131),
-    shot: 'questions',
+    shot: 'avoid_scams',
     cameraMotion: 'static',
     emotion: 'direct_warning',
-    topicTag: 'Scam Detection',
-    lipSyncIntensity: 0.8,
+    topicTag: 'Scam Scrutiny',
   },
   {
-    id: 'line_26',
-    start: 131,
-    end: 138,
-    text: 'Real wealth is usually boring. It grows through patience, discipline, knowledge, consistency, and time.',
-    words: makeWords('Real wealth is usually boring. It grows through patience, discipline, knowledge, consistency, and time.', 131, 138),
-    shot: 'boring',
+    id: 'shot_32',
+    start: 131.0,
+    end: 135.0,
+    text: 'Real wealth is usually boring.',
+    shot: 'mentor_hands',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Boring Wealth',
-    lipSyncIntensity: 0.75,
   },
   {
-    id: 'line_27',
-    start: 138,
-    end: 145,
-    text: "You don't need to become rich overnight. You need to become better with money every single year.",
-    words: makeWords("You don't need to become rich overnight. You need to become better with money every single year.", 138, 145),
-    shot: 'consistency',
-    cameraMotion: 'static',
-    emotion: 'warm_grandfather',
-    topicTag: 'Yearly Growth',
-    lipSyncIntensity: 0.82,
-  },
-  {
-    id: 'line_28',
-    start: 145,
-    end: 154,
-    text: 'So start where you are. With the money you have. With the knowledge you have. And with whatever opportunities are available to you.',
-    words: makeWords('So start where you are. With the money you have. With the knowledge you have. And with whatever opportunities are available to you.', 145, 154),
-    shot: 'yearly',
+    id: 'shot_33',
+    start: 135.0,
+    end: 138.0,
+    text: 'It grows through patience, discipline, knowledge, consistency, and time.',
+    shot: 'patience_plant',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
-    topicTag: 'Start Now',
-    lipSyncIntensity: 0.8,
+    topicTag: 'Patience & Compounding',
   },
   {
-    id: 'line_29',
-    start: 154,
-    end: 161,
+    id: 'shot_34',
+    start: 138.0,
+    end: 145.0,
+    text: "You don't need to become rich overnight. You need to become better with money every single year.",
+    shot: 'mentor_smile',
+    cameraMotion: 'static',
+    emotion: 'warm_grandfather',
+    topicTag: 'Yearly Improvement',
+  },
+  {
+    id: 'shot_35',
+    start: 145.0,
+    end: 150.0,
+    text: 'So start where you are. With the money you have. With the knowledge you have.',
+    shot: 'coins_savings',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Start With What You Have',
+  },
+  {
+    id: 'shot_36',
+    start: 150.0,
+    end: 154.0,
+    text: 'And with whatever opportunities are available to you.',
+    shot: 'multiple_income',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Action In The Present',
+  },
+  {
+    id: 'shot_37',
+    start: 154.0,
+    end: 161.0,
     text: "Because the greatest financial advantage you can have when you're young, isn't a huge bank account.",
-    words: makeWords("Because the greatest financial advantage you can have when you're young, isn't a huge bank account.", 154, 161),
-    shot: 'start_now',
+    shot: 'two_shot',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'The Youth Advantage',
-    lipSyncIntensity: 0.85,
   },
   {
-    id: 'line_30',
-    start: 161,
-    end: 166,
+    id: 'shot_38',
+    start: 161.0,
+    end: 166.0,
     text: 'It is time.',
-    words: makeWords('It is time.', 161, 166),
-    shot: 'time',
+    shot: 'hourglass_time',
     cameraMotion: 'static',
     emotion: 'introspective',
-    topicTag: 'Time',
-    lipSyncIntensity: 0.0,
+    topicTag: 'Time Is Wealth',
   },
   {
-    id: 'line_31',
-    start: 166,
-    end: 175,
-    text: 'You have time to learn. Time to make mistakes. Time to recover. Time to invest.',
-    words: makeWords('You have time to learn. Time to make mistakes. Time to recover. Time to invest.', 166, 175),
-    shot: 'learn',
+    id: 'shot_39',
+    start: 166.0,
+    end: 171.0,
+    text: 'You have time to learn. Time to make mistakes.',
+    shot: 'young_man_reaction',
+    cameraMotion: 'static',
+    emotion: 'measured_conviction',
+    topicTag: 'Time To Learn',
+  },
+  {
+    id: 'shot_40',
+    start: 171.0,
+    end: 175.0,
+    text: 'Time to recover. Time to invest.',
+    shot: 'stocks_chart',
     cameraMotion: 'static',
     emotion: 'measured_conviction',
     topicTag: 'Time To Recover',
-    lipSyncIntensity: 0.75,
   },
   {
-    id: 'line_32',
-    start: 175,
-    end: 182,
+    id: 'shot_41',
+    start: 175.0,
+    end: 182.0,
     text: 'And time to let small decisions become big results.',
-    words: makeWords('And time to let small decisions become big results.', 175, 182),
-    shot: 'results',
+    shot: 'patience_plant',
     cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Big Results',
-    lipSyncIntensity: 0.5,
   },
   {
-    id: 'line_33',
-    start: 182,
-    end: 190,
+    id: 'shot_42',
+    start: 182.0,
+    end: 190.0,
     text: "So don't waste your youth trying to look rich. Use your youth to become financially strong.",
-    words: makeWords("So don't waste your youth trying to look rich. Use your youth to become financially strong.", 182, 190),
-    shot: 'strength',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'direct_warning',
     topicTag: 'Financial Strength',
-    lipSyncIntensity: 0.88,
   },
   {
-    id: 'line_34',
-    start: 190,
-    end: 196,
+    id: 'shot_43',
+    start: 190.0,
+    end: 196.0,
     text: "One day, you'll look back and realize the money wasn't built in one day,",
-    words: makeWords("One day, you'll look back and realize the money wasn't built in one day,", 190, 196),
-    shot: 'realization',
+    shot: 'young_man_notes',
     cameraMotion: 'static',
     emotion: 'introspective',
     topicTag: 'The Realisation',
-    lipSyncIntensity: 0.0,
   },
   {
-    id: 'line_35',
-    start: 196,
-    end: 203,
+    id: 'shot_44',
+    start: 196.0,
+    end: 203.0,
     text: 'the person who knew how to build it was.',
-    words: makeWords('the person who knew how to build it was.', 196, 203),
-    shot: 'builder',
+    shot: 'mentor_smile',
     cameraMotion: 'static',
     emotion: 'warm_grandfather',
     topicTag: 'Final Life Wisdom',
-    lipSyncIntensity: 0.9,
   },
   {
-    id: 'line_36',
-    start: 203,
-    end: 210,
-    text: '', // Silent lingering gaze and fade to black
-    words: [],
-    shot: 'ending',
+    id: 'shot_45',
+    start: 203.0,
+    end: 207.0,
+    text: '',
+    shot: 'two_shot',
+    cameraMotion: 'static',
+    emotion: 'introspective',
+    topicTag: 'Silent Contemplation',
+  },
+  {
+    id: 'shot_46',
+    start: 207.0,
+    end: 210.0,
+    text: '',
+    shot: 'mentor_closeup',
     cameraMotion: 'static',
     emotion: 'grave_mentor',
     topicTag: 'Cinematic Fade Out',
-    lipSyncIntensity: 0.0,
   }
 ];
+
+// YouTube Short Storyboard (40 seconds condensed attention-grabbing cut)
+// Contains 11 fast-paced visual changes across the opening 40 seconds
+export const SHORT_TIMELINE: DialogueLine[] = DIALOGUE_TIMELINE
+  .filter(item => item.start < SHORT_DURATION)
+  .map(item => ({
+    ...item,
+    end: Math.min(item.end, SHORT_DURATION),
+  }));

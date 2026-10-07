@@ -1,18 +1,21 @@
 /**
- * ReelCanvasPlayer: High-performance 9:16 Canvas Renderer for Instagram Reel.
- * Renders a continuous still-image storyboard with:
+ * ReelCanvasPlayer: High-performance Canvas Renderer for 9:16 & 16:9 Visual Previews.
+ * Renders a continuous still-image storyboard:
  * - One static picture for each dialogue section
- * - Hard cuts between pictures (no zoom, pan, sway, lip-sync, blinking, or cross-dissolve)
- * - Cinematic color grading presets
- * - Fixed, non-animated film-grain / lighting overlays
+ * - Supports 9:16 Vertical (Reels / TikTok / Shorts) and 16:9 Horizontal (YouTube Landscape)
+ * - Hard cuts between pictures (no camera movement, no zoom, pan, lip-sync or blinking)
+ * - Cinematic color grading presets and fixed film-grain overlay
+ * - Strictly VISUALS ONLY: No subtitles, captions, or text on the canvas
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   DIALOGUE_TIMELINE, 
-  SHOT_IMAGES, 
+  SHORT_TIMELINE, 
+  SHOT_IMAGES_9_16, 
+  SHOT_IMAGES_16_9, 
   DialogueLine, 
-  CameraShotType 
+  StoryboardImageKey 
 } from '../data/dialogueTimeline';
 import { globalAudioEngine } from '../utils/audioEngine';
 
@@ -22,8 +25,10 @@ export interface ReelCanvasPlayerProps {
   currentTime: number;
   isPlaying: boolean;
   colorGrade: ColorGradePreset;
-  showSafeZones: boolean;
-  filmGrainEnabled: boolean;
+  aspectRatio?: '9:16' | '16:9';
+  timelineMode?: 'full' | 'short';
+  showSafeZones?: boolean;
+  filmGrainEnabled?: boolean;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
 }
 
@@ -31,62 +36,66 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
   currentTime,
   isPlaying,
   colorGrade,
-  showSafeZones,
-  filmGrainEnabled,
+  aspectRatio = '9:16',
+  timelineMode = 'full',
+  showSafeZones = false,
+  filmGrainEnabled = true,
   onCanvasReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const loadedImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  const loadedImages916Ref = useRef<Map<string, HTMLImageElement>>(new Map());
+  const loadedImages169Ref = useRef<Map<string, HTMLImageElement>>(new Map());
   const [imagesLoaded, setImagesLoaded] = useState(false);
 
-  // Preload all storyboard images
+  // Preload all 9:16 and 16:9 storyboard images
   useEffect(() => {
-    let settledCount = 0;
-    const entries = Object.entries(SHOT_IMAGES);
-    const total = entries.length;
-    const cache: Record<string, HTMLImageElement> = {};
+    let cancelled = false;
 
-    const finishLoad = () => {
-      settledCount++;
-      if (settledCount >= total) {
-        loadedImagesRef.current = cache;
-        setImagesLoaded(true);
-      }
+    const loadSet = async (map: Record<string, string>, targetRef: React.MutableRefObject<Map<string, HTMLImageElement>>) => {
+      const cache = new Map<string, HTMLImageElement>();
+      const entries = Object.entries(map);
+
+      await Promise.all(
+        entries.map(([key, src]) => {
+          return new Promise<void>((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              cache.set(key, img);
+              resolve();
+            };
+            img.onerror = () => {
+              console.error('Failed to load image:', key, src);
+              resolve();
+            };
+            img.src = src;
+          });
+        })
+      );
+      targetRef.current = cache;
     };
 
-    entries.forEach(([shotKey, src]) => {
-      if (!src) {
-        console.error('Missing image source for shot:', shotKey);
-        finishLoad();
-        return;
+    Promise.all([
+      loadSet(SHOT_IMAGES_9_16, loadedImages916Ref),
+      loadSet(SHOT_IMAGES_16_9, loadedImages169Ref),
+    ]).then(() => {
+      if (!cancelled) {
+        setImagesLoaded(true);
       }
-
-      const img = new Image();
-      img.onload = () => {
-        cache[shotKey] = img;
-        finishLoad();
-      };
-      img.onerror = () => {
-        console.error('Failed to load image:', src);
-        finishLoad();
-      };
-      img.src = src;
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const activeTimeline = timelineMode === 'short' ? SHORT_TIMELINE : DIALOGUE_TIMELINE;
 
   // Find active line and shot
-  const getCurrentDialogueLine = useCallback((t: number): { current: DialogueLine; next?: DialogueLine; progress: number } => {
-    const idx = DIALOGUE_TIMELINE.findIndex(l => t >= l.start && t < l.end);
-    if (idx === -1) {
-      const last = DIALOGUE_TIMELINE[DIALOGUE_TIMELINE.length - 1];
-      return { current: last, progress: 1.0 };
-    }
-    const current = DIALOGUE_TIMELINE[idx];
-    const next = DIALOGUE_TIMELINE[idx + 1];
-    const duration = Math.max(0.1, current.end - current.start);
-    const progress = (t - current.start) / duration;
-    return { current, next, progress };
-  }, []);
+  const getCurrentDialogueLine = useCallback((t: number): DialogueLine => {
+    const section = activeTimeline.find(l => t >= l.start && t < l.end);
+    return section || activeTimeline[activeTimeline.length - 1];
+  }, [activeTimeline]);
 
   // Main Canvas Render Loop
   useEffect(() => {
@@ -105,19 +114,22 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
 
     const render = () => {
       const t = globalAudioEngine.getCurrentTime();
-      const { current } = getCurrentDialogueLine(t);
+      const current = getCurrentDialogueLine(t);
 
-      const W = canvas.width;  // 1080
-      const H = canvas.height; // 1920
+      const W = canvas.width;
+      const H = canvas.height;
 
       ctx.save();
 
-      // 1. Draw ONE completely static picture for the active dialogue section.
-      // It remains perfectly still until the next dialogue section begins.
+      // Determine active image dictionary based on 9:16 vs 16:9
+      const activeCache = aspectRatio === '16:9' ? loadedImages169Ref.current : loadedImages916Ref.current;
+      const fallbackCache = loadedImages916Ref.current;
+
       const activeImg =
-        loadedImagesRef.current[current.shot] ||
-        loadedImagesRef.current.mentorFallback ||
-        Object.values(loadedImagesRef.current)[0];
+        activeCache.get(current.shot) ||
+        fallbackCache.get(current.shot) ||
+        activeCache.get('mentor_closeup') ||
+        activeCache.values().next().value;
 
       if (activeImg) {
         const imgAspect = activeImg.width / activeImg.height;
@@ -133,6 +145,9 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
           drawH = W / imgAspect;
         }
 
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, W, H);
+
         ctx.drawImage(
           activeImg,
           (W - drawW) / 2,
@@ -142,30 +157,32 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
         );
       }
 
-      // 4. Color Grading Post-Processing
+      // Color Grading Post-Processing
       applyColorGrading(ctx, W, H, colorGrade);
 
-      // 5. Fixed film grain overlay
+      // Fixed film grain overlay
       if (filmGrainEnabled) {
         applyFilmGrain(ctx, W, H);
       }
 
-      // 6. Subtle anamorphic lens vignette & golden afternoon light bloom
+      // Subtle anamorphic lens vignette & golden afternoon light bloom
       applyCinematicLighting(ctx, W, H);
 
-      // 7. No subtitles/captions: voice + visuals only.
-
-      // 8. Instagram Reel Safe Zones Guide
+      // Safe Zones Guide (optional preview toggle)
       if (showSafeZones) {
-        renderSafeZones(ctx, W, H);
+        renderSafeZones(ctx, W, H, aspectRatio);
       }
 
-      // 9. Ending fade to black
-      if (t >= 204) {
-        const fadeAlpha = Math.min(1.0, (t - 204) / 5.5);
+      // Ending fade to black
+      const maxT = activeTimeline[activeTimeline.length - 1].end;
+      const fadeStart = maxT - 3.5;
+      if (t >= fadeStart) {
+        const fadeAlpha = Math.min(1.0, (t - fadeStart) / 3.0);
         ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
         ctx.fillRect(0, 0, W, H);
       }
+
+      ctx.restore();
 
       animId = requestAnimationFrame(render);
     };
@@ -175,13 +192,12 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [imagesLoaded, colorGrade, showSafeZones, filmGrainEnabled, onCanvasReady, getCurrentDialogueLine]);
+  }, [imagesLoaded, colorGrade, aspectRatio, timelineMode, showSafeZones, filmGrainEnabled, onCanvasReady, getCurrentDialogueLine, activeTimeline]);
 
   // Color grade filters
   const applyColorGrading = (ctx: CanvasRenderingContext2D, W: number, H: number, preset: ColorGradePreset) => {
     ctx.save();
     if (preset === 'warm_35mm') {
-      // Warm amber highlights, rich teak shadows
       ctx.globalCompositeOperation = 'overlay';
       ctx.fillStyle = 'rgba(230, 160, 80, 0.16)';
       ctx.fillRect(0, 0, W, H);
@@ -190,7 +206,6 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
       ctx.fillStyle = 'rgba(255, 235, 200, 0.12)';
       ctx.fillRect(0, 0, W, H);
     } else if (preset === 'portra_400') {
-      // Creamy skin tones, soft pastel contrast
       ctx.globalCompositeOperation = 'soft-light';
       ctx.fillStyle = 'rgba(240, 215, 185, 0.22)';
       ctx.fillRect(0, 0, W, H);
@@ -199,7 +214,6 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
       ctx.fillStyle = 'rgba(245, 240, 235, 0.08)';
       ctx.fillRect(0, 0, W, H);
     } else if (preset === 'scandinavian_noir') {
-      // Desaturated, deep cold contrast
       ctx.globalCompositeOperation = 'color';
       ctx.fillStyle = 'rgba(100, 120, 140, 0.22)';
       ctx.fillRect(0, 0, W, H);
@@ -208,7 +222,6 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
       ctx.fillStyle = 'rgba(220, 225, 230, 0.15)';
       ctx.fillRect(0, 0, W, H);
     } else if (preset === 'golden_hour') {
-      // Dramatic sunset window warmth
       ctx.globalCompositeOperation = 'color-burn';
       ctx.fillStyle = 'rgba(255, 190, 90, 0.14)';
       ctx.fillRect(0, 0, W, H);
@@ -220,157 +233,77 @@ export const ReelCanvasPlayer: React.FC<ReelCanvasPlayerProps> = ({
     ctx.restore();
   };
 
-  // Film grain
+  // Fixed Film grain (static, zero jitter)
   const applyFilmGrain = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
     ctx.save();
     ctx.globalAlpha = 0.045;
     ctx.fillStyle = '#ffffff';
 
-    // Fixed grain pattern so the image itself never appears to move.
     for (let i = 0; i < 600; i++) {
-      const rx = ((Math.sin(i * 999) * 10000) % 1 + 1) % 1 * W;
-      const ry = ((Math.cos(i * 333) * 10000) % 1 + 1) % 1 * H;
+      const rx = (((Math.sin(i * 999) * 10000) % 1 + 1) % 1) * W;
+      const ry = (((Math.cos(i * 333) * 10000) % 1 + 1) % 1) * H;
       const size = (i % 3 === 0) ? 2 : 1;
       ctx.fillRect(rx, ry, size, size);
     }
     ctx.restore();
   };
 
-  // Vignette & window bloom
+  // Vignette & soft lighting
   const applyCinematicLighting = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
     ctx.save();
-    // Vignette
     const gradient = ctx.createRadialGradient(W / 2, H / 2, W * 0.45, W / 2, H / 2, W * 0.85);
     gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
     gradient.addColorStop(1, 'rgba(10, 6, 4, 0.52)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, H);
 
-    // Warm sunbeam leak in top-right
     const sunbeam = ctx.createRadialGradient(W * 0.9, H * 0.1, 20, W * 0.7, H * 0.35, W * 0.7);
-    const pulse = 0.08;
-    sunbeam.addColorStop(0, `rgba(255, 220, 160, ${pulse * 1.5})`);
+    sunbeam.addColorStop(0, 'rgba(255, 220, 160, 0.12)');
     sunbeam.addColorStop(1, 'rgba(255, 200, 130, 0)');
     ctx.fillStyle = sunbeam;
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
   };
 
-  // Subtitle renderer
-  const renderSubtitles = (
-    ctx: CanvasRenderingContext2D,
-    W: number,
-    H: number,
-    line: DialogueLine,
-    t: number,
-    style: 'bold_yellow' | 'clean_white' | 'gold_serif'
-  ) => {
-    ctx.save();
-
-    const subY = H * 0.76; // Sits above Instagram Reel bottom action items
-    const words = line.words;
-    if (!words || words.length === 0) {
-      ctx.restore();
-      return;
-    }
-
-    // Measure text formatting
-    let fontFace = "'Plus Jakarta Sans', sans-serif";
-    if (style === 'gold_serif') fontFace = "'Newsreader', serif";
-
-    const fontSize = 48;
-    ctx.font = `700 ${fontSize}px ${fontFace}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    // Break words into chunks of ~5-7 words for mobile readability
-    const maxWordsPerLine = 6;
-    const activeWordIdx = words.findIndex(w => t >= w.start && t < w.end);
-    const chunkIdx = activeWordIdx !== -1 ? Math.floor(activeWordIdx / maxWordsPerLine) : 0;
-    const currentChunk = words.slice(chunkIdx * maxWordsPerLine, (chunkIdx + 1) * maxWordsPerLine);
-
-    // Subtle dark backdrop pill behind subtitles for 100% legibility
-    const fullText = currentChunk.map(w => w.word).join(' ');
-    const textMetrics = ctx.measureText(fullText);
-    const padX = 36;
-    const padY = 20;
-    const boxW = Math.min(W * 0.92, textMetrics.width + padX * 2);
-    const boxH = fontSize * 1.4 + padY * 2;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.beginPath();
-    ctx.roundRect((W - boxW) / 2, subY - boxH / 2, boxW, boxH, 16);
-    ctx.fill();
-
-    // Render individual words with active highlight
-    let currentX = (W - textMetrics.width) / 2;
-    currentChunk.forEach((w) => {
-      const isWordActive = t >= w.start && t < w.end;
-      const wordText = w.word + ' ';
-      const wordWidth = ctx.measureText(wordText).width;
-
-      ctx.save();
-      // Drop shadow
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
-
-      if (isWordActive) {
-        if (style === 'bold_yellow') {
-          ctx.fillStyle = '#FFE600'; // Signature Instagram Reel viral yellow
-        } else if (style === 'gold_serif') {
-          ctx.fillStyle = '#F5D061';
-        } else {
-          ctx.fillStyle = '#60A5FA';
-        }
-        ctx.font = `800 ${fontSize + 4}px ${fontFace}`;
-      } else {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = `700 ${fontSize}px ${fontFace}`;
-      }
-
-      ctx.textAlign = 'left';
-      ctx.fillText(wordText, currentX, subY);
-      ctx.restore();
-
-      currentX += wordWidth;
-    });
-
-    ctx.restore();
-  };
-
   // Safe zones guide
-  const renderSafeZones = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
+  const renderSafeZones = (ctx: CanvasRenderingContext2D, W: number, H: number, aspect: '9:16' | '16:9') => {
     ctx.save();
     ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
     ctx.lineWidth = 3;
     ctx.setLineDash([8, 8]);
 
-    // Top safe zone (header, account info)
-    ctx.strokeRect(40, 160, W - 80, H - 420);
-
-    // Label
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
-    ctx.font = '600 24px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('9:16 INSTAGRAM REEL SAFE ZONE', 50, 150);
-    ctx.fillText('AVOID BOTTOM 260px (CAPTION & AUDIO)', 50, H - 240);
+    if (aspect === '9:16') {
+      ctx.strokeRect(40, 160, W - 80, H - 420);
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+      ctx.font = '600 24px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('9:16 VERTICAL SAFE ZONE', 50, 150);
+      ctx.fillText('AVOID BOTTOM 260px (CAPTION & AUDIO)', 50, H - 240);
+    } else {
+      ctx.strokeRect(100, 60, W - 200, H - 120);
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+      ctx.font = '600 24px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('16:9 YOUTUBE ACTION SAFE AREA', 110, 50);
+    }
     ctx.restore();
   };
+
+  const canvasWidth = aspectRatio === '16:9' ? 1920 : 1080;
+  const canvasHeight = aspectRatio === '16:9' ? 1080 : 1920;
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
       <canvas
         ref={canvasRef}
-        width={1080}
-        height={1920}
-        className="max-h-full aspect-[9/16] object-contain shadow-2xl rounded-sm"
+        width={canvasWidth}
+        height={canvasHeight}
+        className={`max-h-full ${aspectRatio === '16:9' ? 'aspect-[16/9]' : 'aspect-[9/16]'} object-contain shadow-2xl rounded-sm`}
       />
       {!imagesLoaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-950 text-stone-200">
           <div className="w-10 h-10 border-2 border-stone-600 border-t-amber-400 rounded-full animate-spin mb-4" />
-          <p className="text-sm font-medium tracking-wide">Loading your original photos...</p>
+          <p className="text-sm font-medium tracking-wide">Preloading Storyboard Photos...</p>
         </div>
       )}
     </div>
